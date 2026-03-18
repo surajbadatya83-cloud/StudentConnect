@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Complaints | StudentConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h2 mb-1">All Complaints</h1>
+                <p class="text-muted mb-0">Monitor every complaint submitted across the system.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                {% if complaints %}
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Student</th>
+                                    <th>Title</th>
+                                    <th>Category</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for complaint in complaints %}
+                                    <tr>
+                                        <td>#{{ complaint.id }}</td>
+                                        <td>{{ complaint.student.name }}</td>
+                                        <td>{{ complaint.title }}</td>
+                                        <td>{{ complaint.tag }}</td>
+                                        <td>{{ complaint.priority }}</td>
+                                        <td>{{ complaint.status }}</td>
+                                        <td>
+                                            <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-primary btn-sm">Manage</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="mb-0 text-muted">No complaints are available yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

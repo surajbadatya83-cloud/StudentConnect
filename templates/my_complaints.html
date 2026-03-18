@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Complaints | StudentConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h2 mb-1">My Complaints</h1>
+                <p class="text-muted mb-0">Track issues submitted from your student account.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">New Complaint</a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="mb-4">
+                    <h2 class="h5 mb-2">Status Workflow</h2>
+                    <p class="text-muted mb-0">{{ complaint_statuses|join(' -> ') }}</p>
+                </div>
+
+                {% if complaints %}
+                    <div class="d-grid gap-3">
+                        {% for complaint in complaints %}
+                            <div class="border rounded p-3 bg-white">
+                                <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                                    <div>
+                                        <h3 class="h6 mb-1">{{ complaint.title }}</h3>
+                                        <p class="text-muted mb-0">{{ complaint.tag }} | {{ complaint.priority }} | {{ complaint.created_at.strftime('%d %b') }}</p>
+                                    </div>
+                                    <span class="badge text-bg-primary">{{ complaint.status }}</span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="small text-muted">Progress</span>
+                                        <span class="small fw-semibold">{{ complaint.progress }}%</span>
+                                    </div>
+                                    <div class="progress" role="progressbar" aria-valuenow="{{ complaint.progress }}" aria-valuemin="0" aria-valuemax="100">
+                                        <div class="progress-bar" style="width: {{ complaint.progress }}%">{{ complaint.progress }}%</div>
+                                    </div>
+                                </div>
+
+                                {% if complaint.deadline %}
+                                    <p class="mb-2"><strong>Deadline:</strong> {{ complaint.deadline.strftime('%d %b %Y') }}</p>
+                                {% endif %}
+
+                                {% if complaint.updates %}
+                                    <div>
+                                        <p class="mb-2"><strong>Latest Updates:</strong></p>
+                                        <ul class="mb-0 ps-3">
+                                            {% for update in complaint.updates|sort(attribute='date', reverse=true)[:2] %}
+                                                <li>{{ update.message }} <span class="text-muted">({{ update.date.strftime('%d %b') }})</span></li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="mb-3 text-muted">You have not submitted any complaints yet.</p>
+                    <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">Submit Your First Complaint</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

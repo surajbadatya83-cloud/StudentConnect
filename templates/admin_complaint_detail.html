@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complaint #{{ complaint.id }} | StudentConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h2 mb-1">Complaint #{{ complaint.id }}</h1>
+                <p class="text-muted mb-0">Review the complaint, assign actions, and send updates to the student.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('admin_complaints') }}" class="btn btn-outline-secondary btn-sm">Back to All Complaints</a>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary btn-sm">Dashboard</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h2 class="h4 mb-3">{{ complaint.title }}</h2>
+                        <p class="mb-2"><strong>Student:</strong> {{ complaint.student.name }} ({{ complaint.student.email }})</p>
+                        <p class="mb-2"><strong>Category:</strong> {{ complaint.tag }}</p>
+                        <p class="mb-2"><strong>Priority:</strong> {{ complaint.priority }}</p>
+                        <p class="mb-2"><strong>Current Status:</strong> {{ complaint.status }}</p>
+                        <p class="mb-2"><strong>Date Submitted:</strong> {{ complaint.created_at.strftime('%d %b %Y, %I:%M %p') }}</p>
+                        <p class="mb-2"><strong>Deadline:</strong> {{ complaint.deadline.strftime('%d %b %Y') if complaint.deadline else 'Not assigned' }}</p>
+                        <p class="mb-3"><strong>Description:</strong> {{ complaint.description }}</p>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span class="small text-muted">Progress</span>
+                                <span class="small fw-semibold">{{ complaint.progress }}%</span>
+                            </div>
+                            <div class="progress" role="progressbar" aria-valuenow="{{ complaint.progress }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar" style="width: {{ complaint.progress }}%">{{ complaint.progress }}%</div>
+                            </div>
+                        </div>
+
+                        {% if complaint.image %}
+                            <div>
+                                <p class="mb-2"><strong>Uploaded Image:</strong></p>
+                                <a href="{{ url_for('uploaded_file', filename=complaint.image) }}" target="_blank" class="btn btn-outline-primary btn-sm mb-3">View Full Image</a>
+                                <div class="border rounded p-2 bg-white">
+                                    <img src="{{ url_for('uploaded_file', filename=complaint.image) }}" alt="Complaint proof image" class="img-fluid rounded">
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Manage Complaint</h2>
+                        <form method="post" action="{{ url_for('update_complaint', complaint_id=complaint.id) }}">
+                            <div class="mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-select" id="status" name="status" required>
+                                    {% for status in complaint_statuses %}
+                                        <option value="{{ status }}" {% if complaint.status == status %}selected{% endif %}>{{ status }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Workflow: {{ complaint_statuses|join(' -> ') }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="progress" class="form-label">Progress Percentage</label>
+                                <input type="number" class="form-control" id="progress" name="progress" min="0" max="100" value="{{ complaint.progress }}" placeholder="{{ status_progress_map.get(complaint.status, 0) }}">
+                                <div class="form-text">Suggested: Submitted 10%, Under Review 30%, In Progress 70%, Resolved 100%.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="deadline" class="form-label">Deadline</label>
+                                <input type="date" class="form-control" id="deadline" name="deadline" value="{{ complaint.deadline.strftime('%Y-%m-%d') if complaint.deadline else '' }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="message" class="form-label">Progress Update</label>
+                                <textarea class="form-control" id="message" name="message" rows="4" placeholder="Technician assigned to check the WiFi router."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Save Complaint Update</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Update History</h2>
+                {% if updates %}
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Message</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for update in updates %}
+                                    <tr>
+                                        <td>{{ update.progress }}</td>
+                                        <td>{{ update.message }}</td>
+                                        <td>{{ update.date.strftime('%d %b %Y, %I:%M %p') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="mb-0 text-muted">No progress updates have been added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

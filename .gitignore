@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local environment files
+.env
+.env.*
+
+# Local databases
+*.db
+*.sqlite3
+instance/
+
+# User-uploaded/generated files
+uploads/
