@@ -35,7 +35,9 @@
                         <p class="mb-2"><strong>Student:</strong> {{ complaint.student.name }} ({{ complaint.student.email }})</p>
                         <p class="mb-2"><strong>Category:</strong> {{ complaint.tag }}</p>
                         <p class="mb-2"><strong>Priority:</strong> {{ complaint.priority }}</p>
+                        <p class="mb-2"><strong>Votes:</strong> {{ complaint.votes }}</p>
                         <p class="mb-2"><strong>Current Status:</strong> {{ complaint.status }}</p>
+                        <p class="mb-2"><strong>Complaint Type:</strong> {% if complaint.is_merged %}Merged duplicate of #{{ complaint.parent_id }}{% else %}Main complaint{% endif %}</p>
                         <p class="mb-2"><strong>Date Submitted:</strong> {{ complaint.created_at.strftime('%d %b %Y, %I:%M %p') }}</p>
                         <p class="mb-2"><strong>Deadline:</strong> {{ complaint.deadline.strftime('%d %b %Y') if complaint.deadline else 'Not assigned' }}</p>
                         <p class="mb-3"><strong>Description:</strong> {{ complaint.description }}</p>
@@ -57,6 +59,17 @@
                                 <div class="border rounded p-2 bg-white">
                                     <img src="{{ url_for('uploaded_file', filename=complaint.image) }}" alt="Complaint proof image" class="img-fluid rounded">
                                 </div>
+                            </div>
+                        {% endif %}
+
+                        {% if complaint.merged_children %}
+                            <div class="mt-4">
+                                <p class="mb-2"><strong>Merged Duplicates:</strong></p>
+                                <ul class="mb-0 ps-3">
+                                    {% for child in complaint.merged_children %}
+                                        <li>#{{ child.id }} - {{ child.title }} (submitted by {{ child.student.name }})</li>
+                                    {% endfor %}
+                                </ul>
                             </div>
                         {% endif %}
                     </div>
@@ -96,6 +109,23 @@
 
                             <button type="submit" class="btn btn-primary">Save Complaint Update</button>
                         </form>
+
+                        {% if not complaint.is_merged and merge_targets %}
+                            <hr>
+                            <h3 class="h6 mb-3">Merge as Duplicate</h3>
+                            <form method="post" action="{{ url_for('merge_complaints', child_id=complaint.id) }}">
+                                <div class="mb-3">
+                                    <label for="parent_id" class="form-label">Merge into main complaint</label>
+                                    <select class="form-select" id="parent_id" name="parent_id" required>
+                                        <option value="">Select complaint</option>
+                                        {% for target in merge_targets %}
+                                            <option value="{{ target.id }}">#{{ target.id }} - {{ target.title }} ({{ target.votes }} votes)</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-outline-secondary">Merge Complaint</button>
+                            </form>
+                        {% endif %}
                     </div>
                 </div>
             </div>

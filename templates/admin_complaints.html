@@ -40,6 +40,8 @@
                                     <th>Category</th>
                                     <th>Priority</th>
                                     <th>Status</th>
+                                    <th>Votes</th>
+                                    <th>Type</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -52,8 +54,31 @@
                                         <td>{{ complaint.tag }}</td>
                                         <td>{{ complaint.priority }}</td>
                                         <td>{{ complaint.status }}</td>
+                                        <td>{{ complaint.votes }}</td>
                                         <td>
-                                            <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-primary btn-sm">Manage</a>
+                                            {% if complaint.is_merged %}
+                                                <span class="badge text-bg-secondary">Merged into #{{ complaint.parent_id }}</span>
+                                            {% else %}
+                                                <span class="badge text-bg-success">Main</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-2 align-items-center flex-wrap">
+                                                <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-primary btn-sm">Manage</a>
+                                                {% if not complaint.is_merged %}
+                                                    <form method="post" action="{{ url_for('merge_complaints', child_id=complaint.id) }}" class="d-flex gap-2 align-items-center">
+                                                        <select class="form-select form-select-sm" name="parent_id">
+                                                            <option value="">Merge into...</option>
+                                                            {% for target in merge_targets %}
+                                                                {% if target.id != complaint.id %}
+                                                                    <option value="{{ target.id }}">#{{ target.id }} - {{ target.title }}</option>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        </select>
+                                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Merge</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
                                         </td>
                                     </tr>
                                 {% endfor %}

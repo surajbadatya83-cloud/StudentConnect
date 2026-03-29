@@ -3,17 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | StudentConnect</title>
+    <title>Admin Complaint Feed | StudentConnect</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h2 mb-1">Admin Complaint Dashboard</h1>
-                <p class="text-muted mb-0">Review complaints, assign deadlines, and move issues toward resolution.</p>
+<body>
+    <div class="container py-4 py-lg-5 shell">
+        <div class="hero rounded-4 p-4 p-lg-5 mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-4">
+                <div>
+                    <h1 class="display-6 fw-semibold mb-2">Admin complaint feed</h1>
+                    <p class="mb-0 text-white-50">Review the same community-ranked complaint stream students see, then jump straight into management, updates, and duplicate merging.</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-content-start">
+                    <a href="{{ url_for('admin_complaints') }}" class="btn btn-light btn-sm">All Complaints</a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
+                </div>
             </div>
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -24,92 +30,148 @@
             {% endif %}
         {% endwith %}
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <p class="mb-2"><strong>Admin:</strong> {{ current_student.name }}</p>
-                <p class="mb-0"><strong>Status Workflow:</strong> {{ complaint_statuses|join(' -> ') }}</p>
-            </div>
-        </div>
+        <div class="row g-4">
+            <div class="col-xl-4">
+                <div class="panel rounded-4 p-4 sticky-search">
+                    <h2 class="h5 mb-1">Sticky search and filters</h2>
+                    <p class="text-muted mb-4">Search complaint cards, filter by category or status, and sort the queue by urgency or recency.</p>
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-6 col-xl-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <p class="text-muted mb-2">Total Complaints</p>
-                        <h2 class="h3 mb-0">{{ stats.total }}</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-xl-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <p class="text-muted mb-2">Pending</p>
-                        <h2 class="h3 mb-0">{{ stats.pending }}</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-xl-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <p class="text-muted mb-2">In Progress</p>
-                        <h2 class="h3 mb-0">{{ stats.in_progress }}</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-xl-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <p class="text-muted mb-2">Resolved</p>
-                        <h2 class="h3 mb-0">{{ stats.resolved }}</h2>
-                    </div>
-                </div>
-            </div>
-        </div>
+                    <form method="get" class="d-grid gap-3 mb-4">
+                        <div>
+                            <label for="q" class="form-label">Search</label>
+                            <input type="search" class="form-control" id="q" name="q" value="{{ feed_filters.q }}" placeholder="hostel water, broken benches, WiFi...">
+                        </div>
 
-        <div class="card shadow-sm">
-            <div class="card-body">
+                        <div>
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">All categories</option>
+                                {% for option in feed_category_options %}
+                                    <option value="{{ option }}" {% if feed_filters.category == option %}selected{% endif %}>{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                {% for value, label in feed_status_options.items() %}
+                                    <option value="{{ value }}" {% if feed_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="sort" class="form-label">Sort by</label>
+                            <select class="form-select" id="sort" name="sort">
+                                {% for value, label in feed_sort_options.items() %}
+                                    <option value="{{ value }}" {% if feed_filters.sort == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-dark flex-grow-1">Apply</button>
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">Reset</a>
+                        </div>
+                    </form>
+
+                    <div class="mb-3">
+                        <p class="mb-1"><strong>Admin:</strong> {{ current_student.name }}</p>
+                        <p class="mb-0 text-muted"><strong>Workflow:</strong> {{ complaint_statuses|join(' -> ') }}</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="metric">
+                                <div class="small text-muted mb-1">Active</div>
+                                <div class="h3 mb-0">{{ stats.total }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric">
+                                <div class="small text-muted mb-1">Trending</div>
+                                <div class="h3 mb-0">{{ trending_count }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric">
+                                <div class="small text-muted mb-1">Pending</div>
+                                <div class="h3 mb-0">{{ stats.pending }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric">
+                                <div class="small text-muted mb-1">Resolved</div>
+                                <div class="h3 mb-0">{{ stats.resolved }}</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="metric">
+                                <div class="small text-muted mb-1">Merged duplicates</div>
+                                <div class="h3 mb-0">{{ stats.merged }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-8">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <h2 class="h5 mb-1">Recent Complaints</h2>
-                        <p class="text-muted mb-0">Open any complaint to review details, image proof, and status updates.</p>
+                        <h2 class="h4 mb-1">Prioritized complaint stream</h2>
+                        <p class="text-muted mb-0">Trending complaints are highlighted so high-volume issues stand out immediately.</p>
                     </div>
-                    <a href="{{ url_for('admin_complaints') }}" class="btn btn-primary btn-sm">View All Complaints</a>
+                    <span class="text-muted small">{{ complaint_cards|length }} result{% if complaint_cards|length != 1 %}s{% endif %}</span>
                 </div>
 
-                {% if complaints %}
-                    <div class="table-responsive">
-                        <table class="table table-striped align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Student</th>
-                                    <th>Title</th>
-                                    <th>Category</th>
-                                    <th>Priority</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for complaint in complaints[:5] %}
-                                    <tr>
-                                        <td>#{{ complaint.id }}</td>
-                                        <td>{{ complaint.student.name }}</td>
-                                        <td>{{ complaint.title }}</td>
-                                        <td>{{ complaint.tag }}</td>
-                                        <td>{{ complaint.priority }}</td>
-                                        <td>{{ complaint.status }}</td>
-                                        <td>
-                                            <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-outline-primary btn-sm">Manage</a>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="mb-0 text-muted">No complaints have been submitted yet.</p>
-                {% endif %}
+                <div class="d-grid gap-3">
+                    {% for complaint in complaint_cards %}
+                        {% set status_class = 'status-pending' %}
+                        {% if complaint.feed_status == 'In Progress' %}
+                            {% set status_class = 'status-in-progress' %}
+                        {% elif complaint.feed_status == 'Resolved' %}
+                            {% set status_class = 'status-resolved' %}
+                        {% endif %}
+
+                        <div class="feed-card rounded-4 p-4 {% if complaint.is_trending %}trending-card{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                <div>
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <span class="tag-pill">{{ complaint.category }}</span>
+                                        <span class="badge {{ status_class }}">{{ complaint.feed_status }}</span>
+                                        {% if complaint.is_trending %}
+                                            <span class="trending-badge">Trending issue</span>
+                                        {% endif %}
+                                        <span class="text-muted small">{{ complaint.department }}</span>
+                                    </div>
+                                    <h3 class="h4 mb-1">{{ complaint.title }}</h3>
+                                    <div class="text-muted small">Complaint #{{ complaint.id }} &middot; Posted by {{ complaint.student_name }} (Student #{{ complaint.student_id }}) &middot; {{ complaint.time_ago }}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small text-muted">Community votes</div>
+                                    <div class="display-6 lh-1 fw-semibold">{{ complaint.votes }}</div>
+                                </div>
+                            </div>
+
+                            <p class="mb-3 text-secondary">{{ complaint.description }}</p>
+
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div class="text-muted small">Priority {{ complaint.priority }} &middot; Status {{ complaint.status }}</div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-primary btn-sm">Manage</a>
+                                    <a href="{{ url_for('admin_complaints') }}" class="btn btn-outline-secondary btn-sm">Merge Duplicates</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="feed-card rounded-4 p-5 text-center">
+                            <h3 class="h5 mb-2">No complaints matched this admin view</h3>
+                            <p class="text-muted mb-3">Clear the filters to return to the full campus complaint stream.</p>
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">Clear filters</a>
+                        </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
