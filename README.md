@@ -230,9 +230,9 @@ Contributions are welcome. To contribute:
 
 This project is for educational or institutional use. Add your preferred license here if needed.
 
-## 👤 Author
+## 👤 Team Members
 
-**[Your Name]**
+**[Suraj Badatya, Aayush Dubey]**
 
 ## 🙌 Final Note
 
