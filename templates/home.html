@@ -3,50 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusVoice</title>
+    <title>StudentConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">Welcome to CampusVoice</h1>
-            <div>
-                {% if current_student %}
-                    <span class="me-3 text-muted">{{ current_student.name }} ({{ current_student.department }})</span>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm me-2">Dashboard</a>
-                    {% if session.get('role') != 'admin' %}
-                        <a href="{{ url_for('notifications') }}" class="btn btn-outline-primary btn-sm me-2">Notifications ({{ unread_notifications_count }})</a>
+<body>
+    <main class="app-page">
+        <div class="app-shell">
+            <header class="app-topbar">
+                <a href="{{ url_for('home') }}" class="brand-lockup">
+                    <span class="brand-badge" aria-hidden="true"></span>
+                    <span class="brand-text">
+                        <strong>StudentConnect</strong>
+                        <span>Student issue tracking, refined.</span>
+                    </span>
+                </a>
+                <div class="app-actions">
+                    {% if current_student %}
+                        <span class="app-badge">{{ current_student.name }} · {{ current_student.department }}</span>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+                        {% if session.get('role') != 'admin' %}
+                            <a href="{{ url_for('notifications') }}" class="btn btn-outline-secondary btn-sm">Notifications <span class="pill-count">{{ unread_notifications_count }}</span></a>
+                        {% endif %}
+                        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-sm">Login</a>
+                        <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Register</a>
                     {% endif %}
-                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
-                {% else %}
-                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-sm me-2">Login</a>
-                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Register</a>
+                </div>
+            </header>
+
+            <section class="app-hero">
+                <div class="stack-md">
+                    <div class="info-pills">
+                        <span class="hero-chip">Glassmorphism UI</span>
+                        <span class="hero-chip">Community voting</span>
+                        <span class="hero-chip">Clear admin workflow</span>
+                    </div>
+                    <div class="app-heading">
+                        <h1>One campus complaint system, finally designed like one product.</h1>
+                        <p>StudentConnect helps students surface recurring issues, lets admins act with context, and keeps every update visible inside one clean interface.</p>
+                    </div>
+                    <div class="app-actions">
+                        {% if current_student %}
+                            {% if session.get('role') == 'admin' %}
+                                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">Open Admin Dashboard</a>
+                                <a href="{{ url_for('admin_complaints') }}" class="btn btn-outline-secondary">Review All Complaints</a>
+                            {% else %}
+                                <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Open Complaint Feed</a>
+                                <a href="{{ url_for('submit_complaint') }}" class="btn btn-outline-secondary">Submit a Complaint</a>
+                            {% endif %}
+                        {% else %}
+                            <a href="{{ url_for('register') }}" class="btn btn-primary">Create Account</a>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Sign In</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="stack-sm mb-4">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
                 {% endif %}
+            {% endwith %}
+
+            <div class="page-grid two-column">
+                <section class="app-card accent-panel">
+                    <div class="panel-heading stack-sm">
+                        <h3>Why students stick with it</h3>
+                        <p>Reporting, voting, progress updates, and duplicate handling all live in the same calm interface.</p>
+                    </div>
+                    <div class="metric-grid mt-3">
+                        <article class="metric-card">
+                            <strong>1</strong>
+                            <span>shared complaint feed</span>
+                        </article>
+                        <article class="metric-card">
+                            <strong>{{ unread_notifications_count if current_student else 0 }}</strong>
+                            <span>visible unread updates</span>
+                        </article>
+                        <article class="metric-card">
+                            <strong>24/7</strong>
+                            <span>student-side visibility</span>
+                        </article>
+                        <article class="metric-card">
+                            <strong>0</strong>
+                            <span>theme mismatch</span>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="app-card">
+                    {% if current_student %}
+                        <div class="panel-heading stack-sm">
+                            <h3>Current session</h3>
+                            <p>Signed in as {{ session.get('student_name') }} with {{ current_student.email }}. Complaints and votes are tied to this student account.</p>
+                        </div>
+                        <div class="app-actions mt-3">
+                            {% if session.get('role') == 'admin' %}
+                                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary btn-sm">Admin feed</a>
+                                <a href="{{ url_for('admin_complaints') }}" class="btn btn-outline-secondary btn-sm">All complaints</a>
+                            {% else %}
+                                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-sm">Student feed</a>
+                                <a href="{{ url_for('my_complaints') }}" class="btn btn-outline-secondary btn-sm">My complaints</a>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="panel-heading stack-sm">
+                            <h3>Get started</h3>
+                            <p>Create an account or sign in to submit campus issues under your own student identity and track admin updates over time.</p>
+                        </div>
+                        <div class="app-actions mt-3">
+                            <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Register now</a>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-sm">Login</a>
+                        </div>
+                    {% endif %}
+                </section>
             </div>
         </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        {% if current_student %}
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <p class="mb-1"><strong>Logged in as:</strong> {{ session.get('student_name') }} ({{ current_student.email }})</p>
-                    <p class="mb-0 text-muted">Your active session identifies who submitted each complaint in CampusVoice.</p>
-                </div>
-            </div>
-        {% else %}
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <p class="mb-0">Register or log in to submit complaints under your student account.</p>
-                </div>
-            </div>
-        {% endif %}
-    </div>
+    </main>
 </body>
 </html>

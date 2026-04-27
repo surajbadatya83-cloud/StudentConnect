@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | StudentConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
+</head>
+<body>
+    {% set name_parts = current_student.name.split() %}
+    {% set avatar_initials = (name_parts[0][:1] ~ (name_parts[1][:1] if name_parts|length > 1 else ''))|upper %}
+
+    <main class="app-page">
+        <div class="app-shell">
+            <header class="app-topbar">
+                <a href="{{ url_for('dashboard') }}" class="brand-lockup">
+                    <span class="brand-badge" aria-hidden="true"></span>
+                    <span class="brand-text">
+                        <strong>Profile</strong>
+                        <span>Your StudentConnect identity</span>
+                    </span>
+                </a>
+                <div class="app-actions">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+                    <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">New Complaint</a>
+                    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary btn-sm">Settings</a>
+                </div>
+            </header>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="stack-sm mb-4">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <section class="app-hero">
+                <div class="d-flex flex-column flex-lg-row justify-content-between gap-4">
+                    <div class="stack-md">
+                        <div class="info-pills">
+                            <span class="hero-chip">Student profile</span>
+                            <span class="hero-chip">Inline editing</span>
+                            <span class="hero-chip">Complaint history</span>
+                        </div>
+                        <div class="app-heading">
+                            <h1>Keep your campus profile clear and current.</h1>
+                            <p>Your name and department help classmates and admins understand the context behind each complaint.</p>
+                        </div>
+                    </div>
+                    <div class="profile-avatar" aria-hidden="true">{{ avatar_initials }}</div>
+                </div>
+            </section>
+
+            <div class="page-grid profile-grid">
+                <aside class="app-card">
+                    <div class="stack-md">
+                        <div class="profile-avatar" aria-hidden="true">{{ avatar_initials }}</div>
+                        <div>
+                            <h2 class="h4 mb-1">{{ current_student.name }}</h2>
+                            <p class="text-soft mb-0">{{ current_student.email }}</p>
+                        </div>
+                        <div class="metric-grid">
+                            <article class="metric-card">
+                                <strong>{{ current_student.complaints|length }}</strong>
+                                <span>complaints</span>
+                            </article>
+                            <article class="metric-card">
+                                <strong>{{ current_student.department.split('(')[-1].replace(')', '') if '(' in current_student.department else current_student.department }}</strong>
+                                <span>department</span>
+                            </article>
+                        </div>
+                    </div>
+                </aside>
+
+                <section class="stack-md">
+                    <article class="app-card">
+                        <div class="section-heading">
+                            <div>
+                                <h2>Edit profile</h2>
+                                <p>Fields animate into focus and stay aligned with the rest of StudentConnect.</p>
+                            </div>
+                        </div>
+                        <form method="post" class="app-form">
+                            <div class="field-group">
+                                <label for="name">Full name</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ request.form.get('name', current_student.name) }}" required>
+                            </div>
+                            <div class="field-group">
+                                <label for="department">Department</label>
+                                <select class="form-select" id="department" name="department" required>
+                                    {% for department in departments %}
+                                        <option value="{{ department }}" {% if request.form.get('department', current_student.department) == department %}selected{% endif %}>{{ department }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Profile</button>
+                        </form>
+                    </article>
+
+                    <article class="app-card">
+                        <div class="section-heading">
+                            <div>
+                                <h2>Complaint history</h2>
+                                <p>Your latest reports stay in the same card language as the main feed.</p>
+                            </div>
+                            <a href="{{ url_for('my_complaints') }}" class="btn btn-outline-secondary btn-sm">View all</a>
+                        </div>
+
+                        {% if current_student.complaints %}
+                            <div class="stack-md">
+                                {% for complaint in current_student.complaints|sort(attribute='created_at', reverse=true) %}
+                                    {% if loop.index <= 3 %}
+                                        <article class="note-card">
+                                            <div class="d-flex justify-content-between gap-3">
+                                                <div>
+                                                    <h3 class="h6 mb-1">{{ complaint.title }}</h3>
+                                                    <p class="text-soft mb-0">{{ complaint.description }}</p>
+                                                </div>
+                                                <span class="app-badge">{{ complaint.status }}</span>
+                                            </div>
+                                        </article>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <section class="empty-state">
+                                <h3 class="h5 mb-2">No complaints yet</h3>
+                                <p class="text-soft mb-3">Your submitted complaints will appear here.</p>
+                                <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">Submit Complaint</a>
+                            </section>
+                        {% endif %}
+                    </article>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

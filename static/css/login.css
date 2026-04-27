@@ -1,15 +1,15 @@
 :root {
-    --bg-start: #1b4dff;
-    --bg-mid: #7d3cff;
-    --bg-end: #ff5fb2;
-    --card-bg: rgba(255, 255, 255, 0.14);
-    --card-border: rgba(255, 255, 255, 0.2);
+    --bg-start: #090a0d;
+    --bg-mid: #11131a;
+    --bg-end: #181c24;
+    --card-bg: rgba(17, 18, 23, 0.74);
+    --card-border: rgba(255, 255, 255, 0.08);
     --text-main: #f8fbff;
-    --text-soft: rgba(240, 245, 255, 0.76);
-    --field-bg: rgba(255, 255, 255, 0.08);
-    --field-border: rgba(255, 255, 255, 0.18);
-    --shadow-lg: 0 30px 80px rgba(15, 18, 60, 0.35);
-    --shadow-soft: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    --text-soft: rgba(161, 161, 170, 0.88);
+    --field-bg: rgba(255, 255, 255, 0.05);
+    --field-border: rgba(255, 255, 255, 0.1);
+    --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.42);
+    --shadow-soft: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -22,9 +22,9 @@ body {
     font-family: "Manrope", sans-serif;
     color: var(--text-main);
     background:
-        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.22) 0, transparent 18%),
-        radial-gradient(circle at 80% 18%, rgba(255, 255, 255, 0.14) 0, transparent 16%),
-        radial-gradient(circle at 68% 70%, rgba(255, 255, 255, 0.12) 0, transparent 14%),
+        radial-gradient(circle at 20% 20%, rgba(110, 168, 255, 0.2) 0, transparent 18%),
+        radial-gradient(circle at 80% 18%, rgba(139, 92, 246, 0.16) 0, transparent 16%),
+        radial-gradient(circle at 68% 70%, rgba(82, 214, 160, 0.1) 0, transparent 14%),
         linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 48%, var(--bg-end) 100%);
     overflow-x: hidden;
 }

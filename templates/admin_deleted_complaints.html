@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deleted Complaints | StudentConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
+</head>
+<body>
+    <main class="app-page">
+        <div class="app-shell">
+            <header class="app-topbar">
+                <a href="{{ url_for('home') }}" class="brand-lockup">
+                    <span class="brand-badge" aria-hidden="true"></span>
+                    <span class="brand-text">
+                        <strong>Deleted Complaints</strong>
+                        <span>Admin-only moderation history</span>
+                    </span>
+                </a>
+                <div class="app-actions">
+                    <a href="{{ url_for('admin_complaints', visibility='deleted') }}" class="btn btn-outline-secondary btn-sm">Open Deleted Register</a>
+                    <a href="{{ url_for('admin_dashboard', visibility='deleted') }}" class="btn btn-outline-secondary btn-sm">Deleted Dashboard</a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary btn-sm">Admin Dashboard</a>
+                </div>
+            </header>
+
+            <section class="app-card">
+                <div class="section-heading">
+                    <div>
+                        <h2>Moderation log</h2>
+                        <p>Every soft-deleted complaint stays here with the admin ID, reason, and deletion time.</p>
+                    </div>
+                    <span class="app-badge">{{ complaints|length }} item{% if complaints|length != 1 %}s{% endif %}</span>
+                </div>
+
+                {% if complaints %}
+                    <div class="app-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Student</th>
+                                        <th>Title</th>
+                                        <th>Department</th>
+                                        <th>Deleted By</th>
+                                        <th>Reason</th>
+                                        <th>Deleted At</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for complaint in complaints %}
+                                        <tr>
+                                            <td>#{{ complaint.id }}</td>
+                                            <td>{{ complaint.student.name }}</td>
+                                            <td>{{ complaint.title }}</td>
+                                            <td>{{ complaint.department }}</td>
+                                            <td>Admin #{{ complaint.deleted_by or 'Unknown' }}</td>
+                                            <td>{{ complaint.deleted_reason or 'Not provided' }}</td>
+                                            <td>{{ complaint.deleted_at.strftime('%d %b %Y, %I:%M %p') if complaint.deleted_at else 'Unknown' }}</td>
+                                            <td>
+                                                <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-outline-secondary btn-sm">View</a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% else %}
+                    <section class="empty-state">
+                        <h2 class="h4 mb-2">No deleted complaints yet</h2>
+                        <p class="text-soft mb-0">Once admins moderate complaints, the history will appear here.</p>
+                    </section>
+                {% endif %}
+            </section>
+        </div>
+    </main>
+</body>
+</html>

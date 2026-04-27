@@ -1,87 +1,36 @@
-:root {
-    --admin-bg: linear-gradient(180deg, #f7f3ed 0%, #f2f0ea 100%);
-    --admin-panel: #fffdf9;
-    --admin-border: #e6ddd0;
-    --admin-dark: #3b2f2f;
-    --admin-accent: #b45309;
-    --admin-accent-soft: #fff1db;
-}
-
-body {
-    background: var(--admin-bg);
-    color: var(--admin-dark);
-}
-
-.shell {
-    max-width: 1240px;
-}
-
-.hero,
-.panel,
-.feed-card {
-    border: 1px solid var(--admin-border);
-    box-shadow: 0 18px 44px rgba(60, 47, 47, 0.08);
-}
-
-.hero {
-    background: linear-gradient(135deg, #422006 0%, #7c2d12 100%);
-    color: #fff;
-}
-
-.panel,
-.feed-card {
-    background: var(--admin-panel);
+.hero-metrics {
+    min-width: min(100%, 360px);
 }
 
 .sticky-search {
     position: sticky;
-    top: 1rem;
-    z-index: 10;
+    top: 20px;
+    overflow: hidden;
 }
 
-.metric {
-    background: #fff;
-    border: 1px solid var(--admin-border);
-    border-radius: 1rem;
-    padding: 1rem;
-    height: 100%;
-}
-
-.tag-pill,
-.status-pill,
-.trending-badge {
+.sticky-search::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 18px;
+    width: 4px;
+    height: 44px;
     border-radius: 999px;
-    padding: 0.35rem 0.8rem;
-    font-size: 0.8rem;
+    background: var(--app-gradient);
+    box-shadow: 0 10px 24px rgba(108, 77, 255, 0.24);
+    animation: cardRise 420ms ease-out both;
 }
 
-.tag-pill {
-    background: var(--admin-accent-soft);
-    color: var(--admin-accent);
+.admin-vote-box {
+    min-width: 110px;
 }
 
-.status-pending {
-    background: #fff3cd;
-    color: #8a6d1c;
-}
+@media (max-width: 991.98px) {
+    .hero-metrics {
+        min-width: 100%;
+    }
 
-.status-in-progress {
-    background: #dbeafe;
-    color: #1d4ed8;
-}
-
-.status-resolved {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.trending-badge {
-    background: #fde68a;
-    color: #92400e;
-    font-weight: 600;
-}
-
-.trending-card {
-    border: 1px solid rgba(180, 83, 9, 0.3);
-    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12), 0 18px 44px rgba(60, 47, 47, 0.08);
+    .sticky-search {
+        position: static;
+    }
 }

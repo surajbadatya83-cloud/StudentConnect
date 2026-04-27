@@ -3,53 +3,237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register | StudentConnect</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Register | Student Connect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/register.css') }}">
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4">
-                        <h1 class="h3 mb-4 text-center">Student Registration</h1>
+<body class="auth-body" data-auth-mode="register">
+    <main class="auth-page">
+        <span class="bg-blob blob-one" aria-hidden="true"></span>
+        <span class="bg-blob blob-two" aria-hidden="true"></span>
+        <span class="bg-blob blob-three" aria-hidden="true"></span>
 
-                        {% with messages = get_flashed_messages(with_categories=true) %}
-                            {% if messages %}
-                                {% for category, message in messages %}
-                                    <div class="alert alert-{{ category }}">{{ message }}</div>
+        <section class="auth-card" aria-label="Student Connect authentication">
+            <div class="auth-form-side">
+                <a href="{{ url_for('home') }}" class="brand-lockup" aria-label="Student Connect home">
+                    <span class="brand-icon">SC</span>
+                    <span>
+                        <strong>Student Connect</strong>
+                        <small>Campus Complaint Management</small>
+                    </span>
+                </a>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-stack">
+                            {% for category, message in messages %}
+                                <div class="flash flash-{{ category }}">
+                                    <span class="flash-mark"></span>
+                                    <span>{{ message }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <div class="auth-forms">
+                    <form method="post" action="{{ url_for('login') }}" class="auth-form" data-auth-panel="login" novalidate>
+                        <div class="form-heading">
+                            <span class="eyebrow">Welcome back</span>
+                            <h1>Login to your account</h1>
+                            <p>Track complaints, follow updates, and stay connected with campus support.</p>
+                        </div>
+
+                        <label class="floating-field">
+                            <span class="field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z"></path><path d="m4.5 7 7.5 6 7.5-6"></path></svg>
+                            </span>
+                            <input type="email" id="login-email" name="email" value="{{ request.form.get('email', '') }}" placeholder=" " required>
+                            <span class="floating-label">Email address</span>
+                        </label>
+
+                        <label class="floating-field has-action">
+                            <span class="field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+                            </span>
+                            <input type="password" id="login-password" name="password" placeholder=" " required>
+                            <span class="floating-label">Password</span>
+                            <button type="button" class="password-toggle" aria-label="Show password" aria-pressed="false">
+                                <svg class="eye-open" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <svg class="eye-closed" viewBox="0 0 24 24"><path d="m4 4 16 16"></path><path d="M10.6 6.2A9.7 9.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-3 3.5"></path><path d="M6.4 6.6A15.5 15.5 0 0 0 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 4.2-.9"></path></svg>
+                            </button>
+                        </label>
+
+                        <div class="form-options">
+                            <label class="remember-check">
+                                <input type="checkbox" name="remember">
+                                <span></span>
+                                Remember me
+                            </label>
+                            <a href="{{ url_for('home') }}" class="soft-link">Forgot password?</a>
+                        </div>
+
+                        <button type="submit" class="primary-action">
+                            <span class="button-label">Login</span>
+                            <span class="button-spinner" aria-hidden="true"></span>
+                            <span class="button-check" aria-hidden="true"></span>
+                        </button>
+
+                        <p class="switch-copy">New to Student Connect? <button type="button" class="switch-auth" data-auth-target="register">Create account</button></p>
+                    </form>
+
+                    <form method="post" action="{{ url_for('register') }}" class="auth-form is-active" data-auth-panel="register" novalidate>
+                        <div class="form-heading">
+                            <span class="eyebrow">Join the campus loop</span>
+                            <h1>Create your account</h1>
+                            <p>Raise issues, support classmates, and help campus teams respond faster.</p>
+                        </div>
+
+                        <label class="floating-field">
+                            <span class="field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.8-4 14.2-4 16 0"></path></svg>
+                            </span>
+                            <input type="text" id="register-name" name="name" value="{{ request.form.get('name', '') }}" placeholder=" " required>
+                            <span class="floating-label">Full name</span>
+                        </label>
+
+                        <label class="floating-field">
+                            <span class="field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z"></path><path d="m4.5 7 7.5 6 7.5-6"></path></svg>
+                            </span>
+                            <input type="email" id="register-email" name="email" value="{{ request.form.get('email', '') }}" placeholder=" " required>
+                            <span class="floating-label">Email address</span>
+                        </label>
+
+                        <label class="floating-field has-action">
+                            <span class="field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+                            </span>
+                            <input type="password" id="register-password" name="password" placeholder=" " required>
+                            <span class="floating-label">Password</span>
+                            <button type="button" class="password-toggle" aria-label="Show password" aria-pressed="false">
+                                <svg class="eye-open" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <svg class="eye-closed" viewBox="0 0 24 24"><path d="m4 4 16 16"></path><path d="M10.6 6.2A9.7 9.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-3 3.5"></path><path d="M6.4 6.6A15.5 15.5 0 0 0 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 4.2-.9"></path></svg>
+                            </button>
+                        </label>
+
+                        <label class="floating-field select-field">
+                            <span class="field-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M3 21h18"></path><path d="M5 21V5l7-3 7 3v16"></path><path d="M9 9h1"></path><path d="M14 9h1"></path><path d="M9 13h1"></path><path d="M14 13h1"></path></svg>
+                            </span>
+                            <select id="department" name="department" required>
+                                <option value="" disabled {% if not request.form.get('department') %}selected{% endif %}>Choose department</option>
+                                {% for department in departments %}
+                                    <option value="{{ department }}" {% if request.form.get('department') == department %}selected{% endif %}>{{ department }}</option>
                                 {% endfor %}
-                            {% endif %}
-                        {% endwith %}
+                            </select>
+                            <span class="floating-label">Department</span>
+                        </label>
 
-                        <form method="post">
-                            <div class="mb-3">
-                                <label for="name" class="form-label">Name</label>
-                                <input type="text" class="form-control" id="name" name="name" value="{{ request.form.get('name', '') }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" value="{{ request.form.get('email', '') }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
-                            </div>
-                            <div class="mb-4">
-                                <label for="department" class="form-label">Department</label>
-                                <input type="text" class="form-control" id="department" name="department" value="{{ request.form.get('department', '') }}" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Create Account</button>
-                        </form>
+                        <button type="submit" class="primary-action">
+                            <span class="button-label">Create account</span>
+                            <span class="button-spinner" aria-hidden="true"></span>
+                            <span class="button-check" aria-hidden="true"></span>
+                        </button>
 
-                        <p class="text-center mt-3 mb-0">
-                            Already registered?
-                            <a href="{{ url_for('login') }}">Log in</a>
-                        </p>
-                    </div>
+                        <p class="switch-copy">Already registered? <button type="button" class="switch-auth" data-auth-target="login">Login</button></p>
+                    </form>
                 </div>
             </div>
-        </div>
-    </div>
+
+            <aside class="auth-visual-side">
+                <div class="visual-copy">
+                    <span class="visual-pill">Campus voice, clearer action</span>
+                    <h2>Raise concerns with confidence.</h2>
+                    <p>Every complaint becomes easier to report, review, and resolve when students and admins share one calm space.</p>
+                </div>
+
+                <div class="campus-illustration" aria-hidden="true">
+                    <div class="student-card student-one">
+                        <span></span>
+                        <strong>Student</strong>
+                        <small>New issue</small>
+                    </div>
+                    <div class="student-card student-two">
+                        <span></span>
+                        <strong>Admin</strong>
+                        <small>Reviewing</small>
+                    </div>
+                    <div class="message-bubble bubble-a">WiFi</div>
+                    <div class="message-bubble bubble-b">Lab</div>
+                    <div class="status-board">
+                        <span class="board-dot"></span>
+                        <h3>Complaint #24</h3>
+                        <p>In progress</p>
+                        <div class="progress-line"><span></span></div>
+                    </div>
+                    <div class="phone-frame">
+                        <span class="phone-speaker"></span>
+                        <div class="phone-message"></div>
+                        <div class="phone-message short"></div>
+                        <div class="phone-cta"></div>
+                    </div>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    <script>
+        const authBody = document.body;
+        const panels = document.querySelectorAll("[data-auth-panel]");
+        const switchers = document.querySelectorAll(".switch-auth");
+        const flashes = document.querySelectorAll(".flash-danger");
+
+        function setAuthMode(mode, shouldPush = true) {
+            authBody.dataset.authMode = mode;
+            panels.forEach((panel) => {
+                panel.classList.toggle("is-active", panel.dataset.authPanel === mode);
+            });
+
+            if (shouldPush) {
+                const nextUrl = mode === "register" ? "{{ url_for('register') }}" : "{{ url_for('login') }}";
+                window.history.pushState({ mode }, "", nextUrl);
+            }
+        }
+
+        switchers.forEach((button) => {
+            button.addEventListener("click", () => setAuthMode(button.dataset.authTarget));
+        });
+
+        window.addEventListener("popstate", () => {
+            setAuthMode(window.location.pathname.includes("register") ? "register" : "login", false);
+        });
+
+        document.querySelectorAll(".password-toggle").forEach((toggle) => {
+            toggle.addEventListener("click", () => {
+                const input = toggle.closest(".floating-field").querySelector("input");
+                const shouldShow = input.type === "password";
+                input.type = shouldShow ? "text" : "password";
+                toggle.setAttribute("aria-pressed", String(shouldShow));
+                toggle.setAttribute("aria-label", shouldShow ? "Hide password" : "Show password");
+            });
+        });
+
+        document.querySelectorAll(".auth-form").forEach((form) => {
+            form.addEventListener("submit", (event) => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    form.classList.remove("has-error");
+                    void form.offsetWidth;
+                    form.classList.add("has-error");
+                    form.reportValidity();
+                    return;
+                }
+
+                form.classList.add("is-submitting");
+            });
+        });
+
+        if (flashes.length) {
+            document.querySelector(".auth-form.is-active")?.classList.add("has-error");
+        }
+    </script>
 </body>
 </html>

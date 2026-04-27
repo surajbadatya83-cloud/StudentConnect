@@ -55,13 +55,24 @@ STATUS_PROGRESS_MAP = {
 }
 
 DEPARTMENTS = [
-    "Administration",
-    "Computer Science",
-    "Electrical",
-    "Hostel",
-    "Maintenance",
-    "Security",
-    "Student Affairs",
+    "Computer Science and Engineering (CSE)",
+    "Information Technology (IT)",
+    "Electronics and Communication Engineering (ECE)",
+    "Electrical Engineering (EE)",
+    "Mechanical Engineering (ME)",
+    "Civil Engineering (CE)",
+    "Chemical Engineering",
+    "Aerospace Engineering",
+    "Biotechnology Engineering",
+    "Metallurgical Engineering",
+    "Industrial Engineering",
+    "Production Engineering",
+    "Automobile Engineering",
+    "Mechatronics Engineering",
+    "Artificial Intelligence & Data Science",
+    "Artificial Intelligence & Machine Learning",
+    "Robotics Engineering",
+    "Environmental Engineering",
     "Other",
 ]
 
@@ -87,16 +98,31 @@ FEED_SORT_OPTIONS = {
     "most_voted": "Most voted",
     "recent": "Most recent",
 }
+FEED_PAGE_SIZE = 9
 FEED_STATUS_OPTIONS = {
     "all": "All statuses",
     "pending": "Pending",
     "in_progress": "In Progress",
     "resolved": "Resolved",
 }
+ADMIN_VISIBILITY_OPTIONS = {
+    "active": "Active complaints",
+    "deleted": "Deleted complaints",
+    "all": "All complaints",
+}
+DELETION_REASON_OPTIONS = [
+    "Spam",
+    "Offensive content",
+    "Duplicate complaint",
+    "Irrelevant",
+    "Other",
+]
 TRENDING_COMPLAINT_MIN_VOTES = 3
 TRENDING_COMPLAINT_LIMIT = 3
 HARD_DELETE_MAX_VOTES = 4
 EDIT_HISTORY_NOTICE_THRESHOLD = 20
+COMMENTS_PAGE_SIZE = 10
+MAX_COMMENT_LENGTH = 2000
 
 
 class Student(db.Model):
@@ -128,6 +154,9 @@ class Complaint(db.Model):
     votes = db.Column(db.Integer, nullable=False, default=1)
     is_merged = db.Column(db.Boolean, nullable=False, default=False)
     is_deleted = db.Column(db.Boolean, nullable=False, default=False)
+    deleted_by = db.Column(db.Integer)
+    deleted_reason = db.Column(db.Text)
+    deleted_at = db.Column(db.DateTime)
     parent_id = db.Column(db.Integer, db.ForeignKey("complaint.id"))
     deadline = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -143,6 +172,9 @@ class Complaint(db.Model):
     )
     edit_history = db.relationship(
         "ComplaintEditHistory", back_populates="complaint", cascade="all, delete-orphan"
+    )
+    comments = db.relationship(
+        "Comment", back_populates="complaint", cascade="all, delete-orphan"
     )
 
 
@@ -191,6 +223,27 @@ class Notification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    complaint_id = db.Column(db.Integer, db.ForeignKey("complaint.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("student.id"), nullable=False)
+    user_role = db.Column(db.String(20), nullable=False, default="student")
+    parent_comment_id = db.Column(db.Integer, db.ForeignKey("comment.id"))
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    complaint = db.relationship("Complaint", back_populates="comments")
+    author = db.relationship("Student")
+    parent = db.relationship("Comment", remote_side=[id], back_populates="replies")
+    replies = db.relationship(
+        "Comment",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        order_by="Comment.created_at.asc()",
+    )
+
+
 def initialize_database() -> None:
     with app.app_context():
         os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
@@ -200,6 +253,7 @@ def initialize_database() -> None:
         ensure_vote_schema()
         ensure_edit_history_schema()
         ensure_notification_schema()
+        ensure_comment_schema()
         ensure_default_admin()
 
 
@@ -244,6 +298,18 @@ def ensure_complaint_schema() -> None:
         db.session.execute(
             text("ALTER TABLE complaint ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0")
         )
+        db.session.commit()
+
+    if "deleted_by" not in column_names:
+        db.session.execute(text("ALTER TABLE complaint ADD COLUMN deleted_by INTEGER"))
+        db.session.commit()
+
+    if "deleted_reason" not in column_names:
+        db.session.execute(text("ALTER TABLE complaint ADD COLUMN deleted_reason TEXT"))
+        db.session.commit()
+
+    if "deleted_at" not in column_names:
+        db.session.execute(text("ALTER TABLE complaint ADD COLUMN deleted_at DATETIME"))
         db.session.commit()
 
     if "parent_id" not in column_names:
@@ -305,6 +371,12 @@ def ensure_notification_schema() -> None:
     inspector = inspect(db.engine)
     if not inspector.has_table("notification"):
         Notification.__table__.create(db.engine)
+
+
+def ensure_comment_schema() -> None:
+    inspector = inspect(db.engine)
+    if not inspector.has_table("comment"):
+        Comment.__table__.create(db.engine)
 
 
 def ensure_default_admin() -> None:
@@ -475,6 +547,151 @@ def active_complaints_query():
     return Complaint.query.filter_by(is_merged=False, is_deleted=False)
 
 
+def deleted_complaints_query():
+    return Complaint.query.filter_by(is_deleted=True)
+
+
+def non_merged_complaints_query():
+    return Complaint.query.filter_by(is_merged=False)
+
+
+def normalize_admin_visibility(raw_value: str) -> str:
+    value = (raw_value or "").strip().lower()
+    if value not in ADMIN_VISIBILITY_OPTIONS:
+        return "active"
+    return value
+
+
+def complaint_scope_query_for_admin(visibility: str):
+    if visibility == "deleted":
+        return Complaint.query.filter(
+            Complaint.is_merged.is_(False),
+            Complaint.is_deleted.is_(True),
+        )
+    if visibility == "all":
+        return Complaint.query.filter(Complaint.is_merged.is_(False))
+    return active_complaints_query()
+
+
+def build_deleted_reason(selected_reason: str, custom_reason: str) -> str:
+    normalized_reason = selected_reason.strip()
+    normalized_custom_reason = custom_reason.strip()
+
+    if normalized_reason not in DELETION_REASON_OPTIONS:
+        raise ValueError("Please choose a valid deletion reason.")
+
+    if normalized_reason == "Other":
+        if not normalized_custom_reason:
+            raise ValueError("Please provide a reason when selecting Other.")
+        return f"Other: {normalized_custom_reason}"
+
+    return normalized_reason
+
+
+def safe_redirect_target(default_endpoint: str, **default_values) -> str:
+    target = request.form.get("next", "").strip()
+    if target.startswith("/"):
+        return target
+    return url_for(default_endpoint, **default_values)
+
+
+def comment_redirect_target(complaint_id: int) -> str:
+    if session.get("role") == "admin":
+        return safe_redirect_target("admin_complaint_detail", complaint_id=complaint_id)
+    return safe_redirect_target("complaint_detail", complaint_id=complaint_id)
+
+
+def sanitize_comment_content(raw_content: str) -> str:
+    cleaned = (raw_content or "").replace("\x00", "")
+    cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = re.sub(r"<[^>]*>", "", cleaned)
+    cleaned = "\n".join(line.rstrip() for line in cleaned.split("\n"))
+    return cleaned.strip()
+
+
+def can_view_complaint(complaint: "Complaint") -> bool:
+    if getattr(g, "student", None) is None:
+        return False
+    if session.get("role") == "admin":
+        return True
+    if complaint.student_id == g.student.id:
+        return True
+    return not complaint.is_deleted
+
+
+def can_edit_comment(comment: "Comment") -> bool:
+    return getattr(g, "student", None) is not None and comment.user_id == g.student.id
+
+
+def can_delete_comment(comment: "Comment") -> bool:
+    if getattr(g, "student", None) is None:
+        return False
+    if session.get("role") == "admin":
+        return True
+    return comment.user_id == g.student.id
+
+
+def serialize_comment(comment: "Comment") -> dict:
+    author = comment.author
+    display_name = author.name if author is not None else f"User #{comment.user_id}"
+    is_placeholder = comment.content == "This comment was deleted."
+    return {
+        "id": comment.id,
+        "content": comment.content,
+        "created_at": comment.created_at,
+        "updated_at": comment.updated_at,
+        "author_name": display_name,
+        "user_role": comment.user_role,
+        "is_admin": comment.user_role == "admin",
+        "is_placeholder": is_placeholder,
+        "can_edit": can_edit_comment(comment) and not is_placeholder,
+        "can_delete": can_delete_comment(comment),
+        "can_reply": not is_placeholder,
+    }
+
+
+def get_comment_threads(complaint_id: int, page: int) -> tuple[list[dict], int, bool]:
+    visible_limit = max(page, 1) * COMMENTS_PAGE_SIZE
+    top_level_query = Comment.query.filter_by(
+        complaint_id=complaint_id,
+        parent_comment_id=None,
+    ).order_by(Comment.created_at.asc(), Comment.id.asc())
+    total_top_level = top_level_query.count()
+    top_level_comments = top_level_query.limit(visible_limit).all()
+    parent_ids = [comment.id for comment in top_level_comments]
+
+    replies_by_parent: dict[int, list[dict]] = {}
+    if parent_ids:
+        replies = (
+            Comment.query.filter(Comment.parent_comment_id.in_(parent_ids))
+            .order_by(Comment.created_at.asc(), Comment.id.asc())
+            .all()
+        )
+        for reply in replies:
+            replies_by_parent.setdefault(reply.parent_comment_id, []).append(
+                serialize_comment(reply)
+            )
+
+    threads = []
+    for comment in top_level_comments:
+        threads.append(
+            {
+                "comment": serialize_comment(comment),
+                "replies": replies_by_parent.get(comment.id, []),
+            }
+        )
+
+    return threads, total_top_level, total_top_level > len(top_level_comments)
+
+
+def delete_comment_or_placeholder(comment: "Comment") -> None:
+    if comment.replies:
+        comment.content = "This comment was deleted."
+        comment.updated_at = datetime.utcnow()
+        return
+    db.session.delete(comment)
+
+
 def can_student_edit_complaint(complaint: "Complaint") -> tuple[bool, str | None]:
     if complaint.student_id != getattr(g, "student", None).id:
         return False, "You can only edit your own complaints."
@@ -579,6 +796,11 @@ def serialize_complaint_card(complaint: "Complaint", voted_ids: set[int] | None 
         "student_name": complaint.student.name,
         "student_id": complaint.student_id,
         "updated_at": complaint.updated_at,
+        "is_deleted": complaint.is_deleted,
+        "deleted_reason": complaint.deleted_reason,
+        "deleted_at": complaint.deleted_at,
+        "deleted_by": complaint.deleted_by,
+        "merged_count": len(complaint.merged_children),
         "can_edit": (
             getattr(g, "student", None) is not None
             and complaint.student_id == g.student.id
@@ -599,13 +821,33 @@ def serialize_complaint_card(complaint: "Complaint", voted_ids: set[int] | None 
 def build_feed_context(is_admin: bool = False) -> dict:
     search_term = request.args.get("q", "").strip()
     selected_category = request.args.get("category", "").strip()
+    selected_department = request.args.get("department", "").strip()
+    selected_scope = request.args.get("scope", "all").strip().lower() or "all"
     selected_status = request.args.get("status", "all").strip() or "all"
     sort_by = request.args.get("sort", DEFAULT_FEED_SORT).strip() or DEFAULT_FEED_SORT
+    page = max(request.args.get("page", 1, type=int), 1)
+    visibility = (
+        normalize_admin_visibility(request.args.get("visibility", "active"))
+        if is_admin
+        else "active"
+    )
 
-    complaints = active_complaints_query().all()
+    complaints = complaint_scope_query_for_admin(visibility).all()
 
     if selected_category:
         complaints = [item for item in complaints if item.tag == selected_category]
+
+    if selected_department:
+        complaints = [item for item in complaints if item.department == selected_department]
+
+    if (
+        not is_admin
+        and selected_scope == "my_department"
+        and getattr(g, "student", None) is not None
+    ):
+        complaints = [item for item in complaints if item.department == g.student.department]
+    else:
+        selected_scope = "all"
 
     complaints = [
         item
@@ -643,6 +885,11 @@ def build_feed_context(is_admin: bool = False) -> dict:
         card["is_trending"] = complaint.id in trending_ids
         complaint_cards.append(card)
 
+    total_results = len(complaint_cards)
+    visible_count = page * FEED_PAGE_SIZE
+    visible_cards = complaint_cards[:visible_count]
+    has_more = total_results > len(visible_cards)
+
     status_counts = {
         "all": len(complaint_cards),
         "pending": sum(1 for item in complaint_cards if item["feed_status"] == "Pending"),
@@ -653,18 +900,27 @@ def build_feed_context(is_admin: bool = False) -> dict:
     }
 
     return {
-        "complaint_cards": complaint_cards,
+        "complaint_cards": visible_cards,
         "feed_filters": {
             "q": search_term,
             "category": selected_category,
+            "department": selected_department,
+            "scope": selected_scope,
             "status": selected_status,
             "sort": sort_by,
+            "visibility": visibility,
+            "page": page,
         },
         "feed_sort_options": FEED_SORT_OPTIONS,
         "feed_status_options": FEED_STATUS_OPTIONS,
+        "feed_visibility_options": ADMIN_VISIBILITY_OPTIONS,
         "feed_category_options": CATEGORY_TAGS,
+        "feed_department_options": DEPARTMENTS,
         "feed_status_counts": status_counts,
         "trending_count": len(trending_ids),
+        "feed_total_results": total_results,
+        "feed_has_more": has_more,
+        "feed_next_page": page + 1,
     }
 
 
@@ -753,6 +1009,44 @@ def my_complaints():
         complaints=complaints,
         complaint_statuses=COMPLAINT_STATUSES,
         status_progress_map=STATUS_PROGRESS_MAP,
+    )
+
+
+@app.route("/complaint/<int:complaint_id>")
+@login_required
+def complaint_detail(complaint_id: int):
+    complaint = db.session.get(Complaint, complaint_id)
+    if complaint is None:
+        flash("Complaint not found.", "danger")
+        return redirect(url_for("dashboard"))
+
+    if session.get("role") == "admin":
+        return redirect(url_for("admin_complaint_detail", complaint_id=complaint.id))
+
+    if not can_view_complaint(complaint):
+        flash("You do not have access to that complaint.", "warning")
+        return redirect(url_for("dashboard"))
+
+    comments_page = max(request.args.get("comments_page", 1, type=int), 1)
+    comment_threads, top_level_comment_count, comments_has_more = get_comment_threads(
+        complaint.id, comments_page
+    )
+    total_comment_count = Comment.query.filter_by(complaint_id=complaint.id).count()
+
+    updates = (
+        ComplaintUpdate.query.filter_by(complaint_id=complaint.id)
+        .order_by(ComplaintUpdate.date.desc())
+        .all()
+    )
+    return render_template(
+        "complaint_detail.html",
+        complaint=complaint,
+        updates=updates,
+        comment_threads=comment_threads,
+        comments_page=comments_page,
+        comments_has_more=comments_has_more,
+        top_level_comment_count=top_level_comment_count,
+        total_comment_count=total_comment_count,
     )
 
 
@@ -866,6 +1160,59 @@ def submit_complaint():
     )
 
 
+@app.route("/complaints/<int:complaint_id>/comments", methods=["POST"])
+@login_required
+def create_comment(complaint_id: int):
+    complaint = db.session.get(Complaint, complaint_id)
+    if complaint is None:
+        flash("Complaint not found.", "danger")
+        if session.get("role") == "admin":
+            return redirect(url_for("admin_complaints"))
+        return redirect(url_for("dashboard"))
+
+    if not can_view_complaint(complaint):
+        flash("You do not have access to comment on that complaint.", "warning")
+        return redirect(comment_redirect_target(complaint_id))
+
+    if complaint.is_deleted:
+        flash("Comments are locked for deleted complaints.", "warning")
+        return redirect(comment_redirect_target(complaint_id))
+
+    content = sanitize_comment_content(request.form.get("content", ""))
+    if not content:
+        flash("Comment text cannot be empty.", "danger")
+        return redirect(comment_redirect_target(complaint_id))
+
+    if len(content) > MAX_COMMENT_LENGTH:
+        flash(f"Comments must be {MAX_COMMENT_LENGTH} characters or fewer.", "danger")
+        return redirect(comment_redirect_target(complaint_id))
+
+    parent_comment_id = request.form.get("parent_comment_id", type=int)
+    parent_comment = None
+    if parent_comment_id:
+        parent_comment = db.session.get(Comment, parent_comment_id)
+        if (
+            parent_comment is None
+            or parent_comment.complaint_id != complaint.id
+            or parent_comment.parent_comment_id is not None
+        ):
+            flash("Reply target is invalid.", "danger")
+            return redirect(comment_redirect_target(complaint_id))
+
+    comment = Comment(
+        complaint_id=complaint.id,
+        user_id=g.student.id,
+        user_role=session.get("role", "student"),
+        parent_comment_id=parent_comment.id if parent_comment else None,
+        content=content,
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(comment)
+    db.session.commit()
+    flash("Comment posted successfully.", "success")
+    return redirect(comment_redirect_target(complaint_id))
+
+
 @app.route("/vote/<int:complaint_id>", methods=["POST"])
 @login_required
 def vote_complaint(complaint_id: int):
@@ -901,6 +1248,57 @@ def vote_complaint(complaint_id: int):
     flash("Your vote has been added to this complaint.", "success")
     next_page = request.form.get("next") or url_for("my_complaints")
     return redirect(next_page)
+
+
+@app.route("/comments/<int:comment_id>/edit", methods=["POST"])
+@login_required
+def edit_comment(comment_id: int):
+    comment = db.session.get(Comment, comment_id)
+    if comment is None:
+        flash("Comment not found.", "danger")
+        if session.get("role") == "admin":
+            return redirect(url_for("admin_complaints"))
+        return redirect(url_for("dashboard"))
+
+    if not can_edit_comment(comment):
+        flash("You can only edit your own comments.", "warning")
+        return redirect(comment_redirect_target(comment.complaint_id))
+
+    updated_content = sanitize_comment_content(request.form.get("content", ""))
+    if not updated_content:
+        flash("Comment text cannot be empty.", "danger")
+        return redirect(comment_redirect_target(comment.complaint_id))
+
+    if len(updated_content) > MAX_COMMENT_LENGTH:
+        flash(f"Comments must be {MAX_COMMENT_LENGTH} characters or fewer.", "danger")
+        return redirect(comment_redirect_target(comment.complaint_id))
+
+    comment.content = updated_content
+    comment.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash("Comment updated successfully.", "success")
+    return redirect(comment_redirect_target(comment.complaint_id))
+
+
+@app.route("/comments/<int:comment_id>/delete", methods=["POST"])
+@login_required
+def delete_comment(comment_id: int):
+    comment = db.session.get(Comment, comment_id)
+    if comment is None:
+        flash("Comment not found.", "danger")
+        if session.get("role") == "admin":
+            return redirect(url_for("admin_complaints"))
+        return redirect(url_for("dashboard"))
+
+    if not can_delete_comment(comment):
+        flash("You do not have permission to delete that comment.", "warning")
+        return redirect(comment_redirect_target(comment.complaint_id))
+
+    complaint_id = comment.complaint_id
+    delete_comment_or_placeholder(comment)
+    db.session.commit()
+    flash("Comment removed successfully.", "success")
+    return redirect(comment_redirect_target(complaint_id))
 
 
 @app.route("/complaints/<int:complaint_id>/edit", methods=["GET", "POST"])
@@ -1150,6 +1548,42 @@ def notifications():
     return render_template("notifications.html", notifications=notification_items)
 
 
+@app.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    if session.get("role") == "admin":
+        return redirect(url_for("admin_dashboard"))
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        department = request.form.get("department", "").strip()
+
+        if not name or not department:
+            flash("Name and department are required.", "danger")
+            return render_template("profile.html", departments=DEPARTMENTS)
+
+        if department not in DEPARTMENTS:
+            flash("Please choose a valid department.", "danger")
+            return render_template("profile.html", departments=DEPARTMENTS)
+
+        g.student.name = name
+        g.student.department = department
+        session["student_name"] = name
+        db.session.commit()
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for("profile"))
+
+    return render_template("profile.html", departments=DEPARTMENTS)
+
+
+@app.route("/settings")
+@login_required
+def settings():
+    if session.get("role") == "admin":
+        return redirect(url_for("admin_dashboard"))
+    return render_template("settings.html")
+
+
 @app.route("/mark-read/<int:notification_id>", methods=["POST"])
 @login_required
 def mark_notification_read(notification_id: int):
@@ -1169,12 +1603,14 @@ def mark_notification_read(notification_id: int):
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
+    visibility = normalize_admin_visibility(request.args.get("visibility", "active"))
     complaints = (
-        active_complaints_query()
+        complaint_scope_query_for_admin(visibility)
         .order_by(Complaint.votes.desc(), Complaint.created_at.desc())
         .all()
     )
     merged_count = Complaint.query.filter_by(is_merged=True).count()
+    deleted_count = deleted_complaints_query().count()
     stats = {
         "total": len(complaints),
         "pending": sum(
@@ -1185,12 +1621,14 @@ def admin_dashboard():
         ),
         "resolved": sum(1 for complaint in complaints if complaint.status == "Resolved"),
         "merged": merged_count,
+        "deleted": deleted_count,
     }
     return render_template(
         "admin_dashboard.html",
         complaints=complaints,
         complaint_statuses=COMPLAINT_STATUSES,
         stats=stats,
+        deletion_reason_options=DELETION_REASON_OPTIONS,
         **build_feed_context(is_admin=True),
     )
 
@@ -1198,7 +1636,20 @@ def admin_dashboard():
 @app.route("/admin/complaints")
 @admin_required
 def admin_complaints():
-    complaints = Complaint.query.order_by(
+    selected_department = request.args.get("department", "").strip()
+    visibility = normalize_admin_visibility(request.args.get("visibility", "all"))
+
+    if visibility == "deleted":
+        complaints_query = deleted_complaints_query()
+    elif visibility == "active":
+        complaints_query = active_complaints_query()
+    else:
+        complaints_query = Complaint.query
+
+    if selected_department:
+        complaints_query = complaints_query.filter(Complaint.department == selected_department)
+
+    complaints = complaints_query.order_by(
         Complaint.is_merged.asc(),
         Complaint.votes.desc(),
         Complaint.created_at.desc(),
@@ -1212,6 +1663,11 @@ def admin_complaints():
         "admin_complaints.html",
         complaints=complaints,
         merge_targets=merge_targets,
+        departments=DEPARTMENTS,
+        selected_department=selected_department,
+        selected_visibility=visibility,
+        visibility_options=ADMIN_VISIBILITY_OPTIONS,
+        deletion_reason_options=DELETION_REASON_OPTIONS,
     )
 
 
@@ -1234,6 +1690,11 @@ def admin_complaint_detail(complaint_id: int):
         .order_by(Complaint.votes.desc(), Complaint.created_at.desc())
         .all()
     )
+    comments_page = max(request.args.get("comments_page", 1, type=int), 1)
+    comment_threads, top_level_comment_count, comments_has_more = get_comment_threads(
+        complaint.id, comments_page
+    )
+    total_comment_count = Comment.query.filter_by(complaint_id=complaint.id).count()
     return render_template(
         "admin_complaint_detail.html",
         complaint=complaint,
@@ -1241,6 +1702,12 @@ def admin_complaint_detail(complaint_id: int):
         complaint_statuses=COMPLAINT_STATUSES,
         status_progress_map=STATUS_PROGRESS_MAP,
         merge_targets=merge_targets,
+        deletion_reason_options=DELETION_REASON_OPTIONS,
+        comment_threads=comment_threads,
+        comments_page=comments_page,
+        comments_has_more=comments_has_more,
+        top_level_comment_count=top_level_comment_count,
+        total_comment_count=total_comment_count,
     )
 
 
@@ -1251,6 +1718,10 @@ def update_complaint(complaint_id: int):
     if complaint is None:
         flash("Complaint not found.", "danger")
         return redirect(url_for("admin_complaints"))
+
+    if complaint.is_deleted:
+        flash("Deleted complaints cannot be updated.", "warning")
+        return redirect(url_for("admin_complaint_detail", complaint_id=complaint.id))
 
     previous_status = complaint.status
     previous_progress = complaint.progress
@@ -1348,6 +1819,10 @@ def merge_complaints(child_id: int):
         flash("This complaint has already been merged.", "info")
         return redirect(url_for("admin_complaints"))
 
+    if child.is_deleted or parent.is_deleted:
+        flash("Deleted complaints cannot be merged.", "danger")
+        return redirect(url_for("admin_complaints"))
+
     if parent.is_merged:
         flash("Choose a main complaint that is not already merged.", "danger")
         return redirect(url_for("admin_complaints"))
@@ -1383,6 +1858,70 @@ def merge_complaints(child_id: int):
     return redirect(url_for("admin_complaint_detail", complaint_id=parent.id))
 
 
+@app.route("/admin/complaint/<int:complaint_id>/delete", methods=["POST"])
+@admin_required
+def admin_delete_complaint(complaint_id: int):
+    complaint = db.session.get(Complaint, complaint_id)
+    if complaint is None:
+        flash("Complaint not found.", "danger")
+        return redirect(safe_redirect_target("admin_dashboard"))
+
+    if complaint.is_deleted:
+        flash("This complaint has already been deleted.", "info")
+        return redirect(
+            safe_redirect_target("admin_complaint_detail", complaint_id=complaint.id)
+        )
+
+    selected_reason = request.form.get("deleted_reason", "").strip()
+    custom_reason = request.form.get("custom_reason", "").strip()
+
+    try:
+        deleted_reason = build_deleted_reason(selected_reason, custom_reason)
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(
+            safe_redirect_target("admin_complaint_detail", complaint_id=complaint.id)
+        )
+
+    complaint.is_deleted = True
+    complaint.deleted_by = g.student.id
+    complaint.deleted_reason = deleted_reason
+    complaint.deleted_at = datetime.utcnow()
+    complaint.updated_at = datetime.utcnow()
+
+    db.session.add(
+        ComplaintUpdate(
+            complaint_id=complaint.id,
+            message=f"Complaint removed by admin. Reason: {deleted_reason}.",
+            progress="Removed",
+            date=datetime.utcnow(),
+        )
+    )
+    create_notification(
+        student_id=complaint.student_id,
+        complaint_id=complaint.id,
+        message=(
+            f"Your complaint '{complaint.title}' was removed due to policy violation. "
+            f"Reason: {deleted_reason}."
+        ),
+    )
+    db.session.commit()
+
+    flash("Complaint deleted successfully.", "success")
+    return redirect(safe_redirect_target("admin_dashboard"))
+
+
+@app.route("/admin/deleted-complaints")
+@admin_required
+def admin_deleted_complaints():
+    deleted_items = (
+        deleted_complaints_query()
+        .order_by(Complaint.deleted_at.desc(), Complaint.updated_at.desc())
+        .all()
+    )
+    return render_template("admin_deleted_complaints.html", complaints=deleted_items)
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if g.student is not None:
@@ -1398,12 +1937,16 @@ def register():
 
         if not all([name, email, password, department]):
             flash("All fields are required.", "danger")
-            return render_template("register.html")
+            return render_template("register.html", departments=DEPARTMENTS)
+
+        if department not in DEPARTMENTS:
+            flash("Please choose a valid department.", "danger")
+            return render_template("register.html", departments=DEPARTMENTS)
 
         existing_student = Student.query.filter_by(email=email).first()
         if existing_student is not None:
             flash("An account with that email already exists.", "danger")
-            return render_template("register.html")
+            return render_template("register.html", departments=DEPARTMENTS)
 
         student = Student(
             name=name,
@@ -1417,7 +1960,7 @@ def register():
         flash("Registration successful. Please log in.", "success")
         return redirect(url_for("login"))
 
-    return render_template("register.html")
+    return render_template("register.html", departments=DEPARTMENTS)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1434,7 +1977,7 @@ def login():
         student = Student.query.filter_by(email=email).first()
         if student is None or not check_password_hash(student.password, password):
             flash("Invalid email or password.", "danger")
-            return render_template("login.html")
+            return render_template("login.html", departments=DEPARTMENTS)
 
         session.clear()
         session["student_id"] = student.id
@@ -1445,7 +1988,7 @@ def login():
             return redirect(url_for("admin_dashboard"))
         return redirect(url_for("dashboard"))
 
-    return render_template("login.html")
+    return render_template("login.html", departments=DEPARTMENTS)
 
 
 @app.route("/logout", methods=["GET", "POST"])
@@ -1460,4 +2003,5 @@ initialize_database()
 
 if __name__ == "__main__":
     print("Flask starting...")
-    app.run(debug=True)
+   
+    app.run(host="0.0.0.0", port=5000, debug=True)

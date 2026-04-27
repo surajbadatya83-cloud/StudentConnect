@@ -4,108 +4,139 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Complaints | StudentConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h2 mb-1">My Complaints</h1>
-                <p class="text-muted mb-0">Track, edit, or remove the issues you posted while preserving system fairness.</p>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">New Complaint</a>
-                <a href="{{ url_for('notifications') }}" class="btn btn-outline-primary btn-sm">Notifications ({{ unread_notifications_count }})</a>
-                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Feed</a>
-            </div>
-        </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <div class="mb-4">
-                    <h2 class="h5 mb-2">Status Workflow</h2>
-                    <p class="text-muted mb-0">{{ complaint_statuses|join(' -> ') }}</p>
+<body>
+    <main class="app-page">
+        <div class="app-shell">
+            <header class="app-topbar">
+                <a href="{{ url_for('home') }}" class="brand-lockup">
+                    <span class="brand-badge" aria-hidden="true"></span>
+                    <span class="brand-text">
+                        <strong>My Complaints</strong>
+                        <span>Track, edit, and manage your reports</span>
+                    </span>
+                </a>
+                <div class="app-actions">
+                    <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">New Complaint</a>
+                    <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary btn-sm">Profile</a>
+                    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary btn-sm">Settings</a>
+                    <a href="{{ url_for('notifications') }}" class="btn btn-outline-secondary btn-sm">Notifications <span class="pill-count">{{ unread_notifications_count }}</span></a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Feed</a>
                 </div>
+            </header>
 
-                {% if complaints %}
-                    <div class="d-grid gap-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="stack-sm mb-4">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="page-grid two-column">
+                <aside class="app-card">
+                    <div class="panel-heading stack-sm">
+                        <h3>Status workflow</h3>
+                        <p>{{ complaint_statuses|join(' -> ') }}</p>
+                    </div>
+                </aside>
+
+                <section class="stack-md">
+                    {% if complaints %}
                         {% for complaint in complaints %}
-                            <div class="border rounded p-3 bg-white {% if complaint.is_deleted %}border-warning{% endif %}">
-                                <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
-                                    <div>
-                                        <h3 class="h6 mb-1">{{ complaint.title }}</h3>
-                                        <p class="text-muted mb-0">{{ complaint.tag }} | {{ complaint.priority }} | {{ complaint.created_at.strftime('%d %b') }} | {{ complaint.votes }} votes</p>
+                            <article class="feed-card {% if complaint.is_deleted %}accent-panel{% endif %}">
+                                <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                                    <div class="stack-sm">
+                                        <div class="info-pills">
+                                            <span class="tag-chip">{{ complaint.tag }}</span>
+                                            {% if complaint.is_deleted %}
+                                                <span class="highlight-chip app-badge">Removed</span>
+                                            {% else %}
+                                                {% set status_class = 'pending' %}
+                                                {% if complaint.status == 'In Progress' %}
+                                                    {% set status_class = 'progress' %}
+                                                {% elif complaint.status == 'Resolved' %}
+                                                    {% set status_class = 'resolved' %}
+                                                {% endif %}
+                                                <span class="status-chip {{ status_class }}">{{ complaint.status }}</span>
+                                            {% endif %}
+                                            <span class="app-badge">{{ complaint.priority }}</span>
+                                            <span class="app-badge">{{ complaint.votes }} votes</span>
+                                        </div>
+                                        <div class="stack-sm">
+                                            <h2 class="h4 mb-0">{{ complaint.title }}</h2>
+                                            <p class="mb-0 text-soft">{{ complaint.description }}</p>
+                                        </div>
                                     </div>
-                                    {% if complaint.is_deleted %}
-                                        <span class="badge text-bg-warning">Archived</span>
-                                    {% else %}
-                                        <span class="badge text-bg-primary">{{ complaint.status }}</span>
-                                    {% endif %}
+                                    <div class="vote-box admin-vote-box">
+                                        <span class="muted-line d-block mb-2">Progress</span>
+                                        <span class="vote-count">{{ complaint.progress }}%</span>
+                                    </div>
                                 </div>
 
-                                <p class="mb-3">{{ complaint.description }}</p>
-
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between">
-                                        <span class="small text-muted">Progress</span>
-                                        <span class="small fw-semibold">{{ complaint.progress }}%</span>
-                                    </div>
+                                <div class="stack-sm mb-3">
+                                    <div class="muted-line">Created {{ complaint.created_at.strftime('%d %b %Y') }} · Last updated {{ complaint.updated_at.strftime('%d %b %Y, %I:%M %p') if complaint.updated_at else complaint.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
                                     <div class="progress" role="progressbar" aria-valuenow="{{ complaint.progress }}" aria-valuemin="0" aria-valuemax="100">
-                                        <div class="progress-bar" style="width: {{ complaint.progress }}%">{{ complaint.progress }}%</div>
+                                        <div class="progress-bar" style="width: {{ complaint.progress }}%"></div>
                                     </div>
                                 </div>
-
-                                <p class="small text-muted mb-2">Last updated: {{ complaint.updated_at.strftime('%d %b %Y, %I:%M %p') if complaint.updated_at else complaint.created_at.strftime('%d %b %Y, %I:%M %p') }}</p>
 
                                 {% if complaint.votes > 20 and not complaint.is_deleted %}
-                                    <div class="alert alert-warning py-2 mb-3">
-                                        This complaint has strong community support. Any edits are logged in edit history.
+                                    <div class="alert alert-warning mb-3">This complaint has strong community support. Any edits are logged in edit history.</div>
+                                {% endif %}
+
+                                {% if complaint.is_deleted %}
+                                    <div class="alert alert-danger mb-3">
+                                        Your complaint was removed due to policy violation{% if complaint.deleted_reason %}: {{ complaint.deleted_reason }}{% endif %}.
                                     </div>
                                 {% endif %}
 
                                 {% if complaint.deadline %}
-                                    <p class="mb-2"><strong>Deadline:</strong> {{ complaint.deadline.strftime('%d %b %Y') }}</p>
+                                    <div class="muted-line mb-3">Deadline: {{ complaint.deadline.strftime('%d %b %Y') }}</div>
                                 {% endif %}
 
                                 {% if complaint.updates %}
                                     <div class="mb-3">
-                                        <p class="mb-2"><strong>Latest Updates:</strong></p>
-                                        <ul class="mb-0 ps-3">
+                                        <h3 class="h6 mb-2">Latest updates</h3>
+                                        <ul class="timeline-list">
                                             {% for update in complaint.updates|sort(attribute='date', reverse=true) %}
                                                 {% if loop.index <= 2 %}
-                                                    <li>{{ update.message }} <span class="text-muted">({{ update.date.strftime('%d %b') }})</span></li>
+                                                    <li>{{ update.message }} <span class="muted-line">({{ update.date.strftime('%d %b') }})</span></li>
                                                 {% endif %}
                                             {% endfor %}
                                         </ul>
                                     </div>
                                 {% endif %}
 
-                                <div class="d-flex flex-wrap gap-2">
+                                <div class="inline-actions">
+                                    <a href="{{ url_for('complaint_detail', complaint_id=complaint.id) }}" class="btn btn-outline-secondary btn-sm">Open Discussion</a>
                                     {% if not complaint.is_deleted and complaint.status != 'Resolved' %}
                                         <a href="{{ url_for('edit_student_complaint', complaint_id=complaint.id) }}" class="btn btn-outline-secondary btn-sm">Edit</a>
                                         <form method="post" action="{{ url_for('delete_student_complaint', complaint_id=complaint.id) }}" onsubmit="return confirm('Are you sure? This action may affect other students.');">
                                             <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
                                         </form>
                                     {% endif %}
-                                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-sm">Open Feed</a>
+                                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Open Feed</a>
                                 </div>
-                            </div>
+                            </article>
                         {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="mb-3 text-muted">You have not submitted any complaints yet.</p>
-                    <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">Submit Your First Complaint</a>
-                {% endif %}
+                    {% else %}
+                        <section class="app-card empty-state">
+                            <h2 class="h4 mb-2">You have not submitted any complaints yet</h2>
+                            <p class="text-soft mb-3">Start the conversation with a clear report, then track progress from the same dashboard.</p>
+                            <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">Submit Your First Complaint</a>
+                        </section>
+                    {% endif %}
+                </section>
             </div>
         </div>
-    </div>
+    </main>
 </body>
 </html>

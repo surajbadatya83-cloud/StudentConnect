@@ -3,218 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complaint Feed | StudentConnect</title>
+    <title>StudentConnect | Complaint Feed</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
-<body>
-    <div class="container py-4 py-lg-5 feed-shell">
-        <div class="hero-card rounded-4 p-4 p-lg-5 mb-4">
-            <div class="d-flex flex-column flex-lg-row justify-content-between gap-4">
-                <div>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <span class="badge hero-chip">Campus Complaint Feed</span>
-                        <span class="badge hero-chip">Structured voting</span>
-                        <span class="badge hero-chip">No ML duplicate check</span>
-                    </div>
-                    <h1 class="display-6 fw-semibold mb-2">Surface the issues students are actually facing together.</h1>
-                    <p class="mb-0 text-white-50">Browse complaints like a campus Reddit feed, upvote existing issues, and make the most urgent problems rise to the top.</p>
-                </div>
-                <div class="d-flex flex-column align-items-lg-end gap-2">
-                    <span class="badge meta-chip">Signed in as {{ session.get('student_name') }}</span>
-                    <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
-                        <a href="{{ url_for('submit_complaint') }}" class="btn btn-light btn-sm">Post Complaint</a>
-                        <a href="{{ url_for('my_complaints') }}" class="btn btn-outline-light btn-sm">My Complaints</a>
-                        <a href="{{ url_for('notifications') }}" class="btn btn-outline-light btn-sm">Notifications ({{ unread_notifications_count }})</a>
-                        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
-                    </div>
-                </div>
-            </div>
-        </div>
+<body class="feed-dashboard">
+    {% set student_name = session.get('student_name', 'Student') %}
+    {% set name_parts = student_name.split() %}
+    {% set avatar_initials = (name_parts[0][:1] ~ (name_parts[1][:1] if name_parts|length > 1 else ''))|upper %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+    <main class="feed-page">
+        <div class="feed-shell">
+            <header class="feed-topbar">
+                <a href="{{ url_for('home') }}" class="feed-brand">
+                    <span class="feed-brand-mark">C</span>
+                    <span class="feed-brand-text">
+                        <strong>StudentConnect</strong>
+                        <span>Student complaint feed</span>
+                    </span>
+                </a>
 
-        <div class="row g-4">
-            <div class="col-xl-4">
-                <div class="filter-card rounded-4 p-4 sticky-search">
-                    <div class="mb-4">
-                        <h2 class="h5 mb-1">Sticky search and filters</h2>
-                        <p class="text-muted mb-0">Search by keyword, filter by category or status, and sort by recent or most voted.</p>
-                    </div>
-
-                    <form method="get" class="d-grid gap-3">
-                        <div>
-                            <label for="q" class="form-label">Search</label>
-                            <input type="search" class="form-control" id="q" name="q" value="{{ feed_filters.q }}" placeholder="WiFi in hostel, mess hygiene, classroom fan...">
-                        </div>
-
-                        <div>
-                            <label for="category" class="form-label">Category</label>
-                            <select class="form-select" id="category" name="category">
-                                <option value="">All categories</option>
-                                {% for option in feed_category_options %}
-                                    <option value="{{ option }}" {% if feed_filters.category == option %}selected{% endif %}>{{ option }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label for="status" class="form-label">Status</label>
-                            <select class="form-select" id="status" name="status">
-                                {% for value, label in feed_status_options.items() %}
-                                    <option value="{{ value }}" {% if feed_filters.status == value %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label for="sort" class="form-label">Sort by</label>
-                            <select class="form-select" id="sort" name="sort">
-                                {% for value, label in feed_sort_options.items() %}
-                                    <option value="{{ value }}" {% if feed_filters.sort == value %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary flex-grow-1">Apply Filters</button>
-                            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Reset</a>
-                        </div>
-                    </form>
-
-                    <hr class="my-4">
-
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <div class="border rounded-4 p-3 h-100 bg-white">
-                                <div class="text-muted small mb-1">Visible complaints</div>
-                                <div class="h4 mb-0">{{ feed_status_counts.all }}</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="border rounded-4 p-3 h-100 bg-white">
-                                <div class="text-muted small mb-1">Trending</div>
-                                <div class="h4 mb-0">{{ trending_count }}</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="border rounded-4 p-3 h-100 bg-white">
-                                <div class="text-muted small mb-1">Pending</div>
-                                <div class="h4 mb-0">{{ feed_status_counts.pending }}</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="border rounded-4 p-3 h-100 bg-white">
-                                <div class="text-muted small mb-1">Resolved</div>
-                                <div class="h4 mb-0">{{ feed_status_counts.resolved }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-8">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h2 class="h4 mb-1">Complaint feed</h2>
-                        <p class="text-muted mb-0">Trending complaints are highlighted, and the default sort keeps the most upvoted posts first.</p>
-                    </div>
-                    <span class="text-muted small">{{ complaint_cards|length }} result{% if complaint_cards|length != 1 %}s{% endif %}</span>
-                </div>
-
-                <div class="d-grid gap-3">
-                    {% for complaint in complaint_cards %}
-                        {% set status_class = 'status-pending' %}
-                        {% if complaint.feed_status == 'In Progress' %}
-                            {% set status_class = 'status-in-progress' %}
-                        {% elif complaint.feed_status == 'Resolved' %}
-                            {% set status_class = 'status-resolved' %}
+                <div class="feed-topbar-actions">
+                    <a href="{{ url_for('submit_complaint') }}" class="feed-btn feed-btn-primary">+ New Complaint</a>
+                    <a href="{{ url_for('my_complaints') }}" class="feed-btn feed-btn-secondary">My Complaints</a>
+                    <a href="{{ url_for('profile') }}" class="feed-btn feed-btn-secondary">Profile</a>
+                    <a href="{{ url_for('settings') }}" class="feed-btn feed-btn-secondary">Settings</a>
+                    <a href="{{ url_for('notifications') }}" class="feed-btn feed-btn-secondary">
+                        Notifications
+                        {% if unread_notifications_count %}
+                            <span class="feed-count">{{ unread_notifications_count }}</span>
                         {% endif %}
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="feed-avatar" aria-label="Account menu">
+                        <span>{{ avatar_initials }}</span>
+                    </a>
+                </div>
+            </header>
 
-                        <div class="feed-card rounded-4 p-3 p-lg-4 {% if complaint.is_trending %}trending-ring{% endif %}">
-                            <div class="d-flex flex-column flex-md-row gap-3">
-                                <div class="vote-column">
-                                    <div class="vote-box p-3 text-center">
-                                        {% if complaint.is_trending %}
-                                            <div class="trending-badge mb-2">Trending</div>
-                                        {% endif %}
-                                        <div class="small text-muted mb-2">Students facing this</div>
-                                        <div class="display-6 fw-semibold lh-1">{{ complaint.votes }}</div>
-                                        <div class="small text-muted mb-3">votes</div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="feed-flash-stack">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <section class="feed-toolbar-card">
+                <div class="feed-toolbar-head">
+                    <div>
+                        <h1>Complaint Feed</h1>
+                        <p>Track campus issues, upvote duplicates, and follow updates in one clean workspace.</p>
+                    </div>
+                    <div class="feed-stats">
+                        <article class="feed-stat">
+                            <strong class="js-counter" data-count="{{ feed_total_results }}">{{ feed_total_results }}</strong>
+                            <span>Results</span>
+                        </article>
+                        <article class="feed-stat">
+                            <strong class="js-counter" data-count="{{ trending_count }}">{{ trending_count }}</strong>
+                            <span>Trending</span>
+                        </article>
+                        <article class="feed-stat">
+                            <strong class="js-counter" data-count="{{ feed_status_counts.pending }}">{{ feed_status_counts.pending }}</strong>
+                            <span>Pending</span>
+                        </article>
+                    </div>
+                </div>
+
+                <form method="get" class="feed-toolbar-form">
+                    <div class="feed-search-wrap">
+                        <input
+                            type="search"
+                            id="q"
+                            name="q"
+                            class="feed-search-input"
+                            value="{{ feed_filters.q }}"
+                            placeholder="Search complaints by keyword..."
+                        >
+                    </div>
+
+                    <div class="feed-pill-row">
+                        <a
+                            href="{{ url_for('dashboard', q=feed_filters.q, category=feed_filters.category, status=feed_filters.status, department=feed_filters.department, scope=feed_filters.scope, sort='recent') }}"
+                            class="feed-pill {% if feed_filters.sort == 'recent' %}active{% endif %}"
+                        >Latest</a>
+                        <a
+                            href="{{ url_for('dashboard', q=feed_filters.q, category=feed_filters.category, status=feed_filters.status, department=feed_filters.department, scope=feed_filters.scope, sort='most_voted') }}"
+                            class="feed-pill {% if feed_filters.sort == 'most_voted' %}active{% endif %}"
+                        >Most Upvoted</a>
+                        <a
+                            href="{{ url_for('dashboard', q=feed_filters.q, category=feed_filters.category, status=feed_filters.status, sort=feed_filters.sort, scope='my_department') }}"
+                            class="feed-pill {% if feed_filters.scope == 'my_department' %}active{% endif %}"
+                        >My Dept</a>
+                    </div>
+
+                    <div class="feed-select-row">
+                        <select class="feed-select" name="status" aria-label="Filter by status">
+                            {% for value, label in feed_status_options.items() %}
+                                <option value="{{ value }}" {% if feed_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <select class="feed-select" name="category" aria-label="Filter by category">
+                            <option value="">All categories</option>
+                            {% for option in feed_category_options %}
+                                <option value="{{ option }}" {% if feed_filters.category == option %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <input type="hidden" name="sort" value="{{ feed_filters.sort }}">
+                        <input type="hidden" name="scope" value="{{ feed_filters.scope }}">
+
+                        <button type="submit" class="feed-btn feed-btn-primary">Apply</button>
+                        <a href="{{ url_for('dashboard') }}" class="feed-btn feed-btn-secondary">Reset</a>
+                    </div>
+                </form>
+            </section>
+
+            <section class="feed-content">
+                <div class="feed-content-head">
+                    <div>
+                        <h2>Open complaints</h2>
+                        <p>Students should upvote the same issue instead of opening duplicate complaints.</p>
+                    </div>
+                    <span class="feed-result-pill">{{ complaint_cards|length }} shown</span>
+                </div>
+
+                {% if complaint_cards %}
+                    <div class="complaint-card-grid">
+                        {% for complaint in complaint_cards %}
+                            {% set status_class = 'pending' %}
+                            {% if complaint.feed_status == 'In Progress' %}
+                                {% set status_class = 'progress' %}
+                            {% elif complaint.feed_status == 'Resolved' %}
+                                {% set status_class = 'resolved' %}
+                            {% endif %}
+                            {% set dept_label = complaint.department %}
+                            {% if '(' in complaint.department and ')' in complaint.department %}
+                                {% set dept_label = complaint.department.split('(')[-1].replace(')', '') %}
+                            {% endif %}
+
+                            <article class="complaint-card">
+                                <div class="complaint-card-head">
+                                    <div class="complaint-title-wrap">
+                                        <h3>{{ complaint.title }}</h3>
+                                        <p class="complaint-meta">Posted by {{ complaint.posted_by }} &middot; {{ complaint.time_ago }}</p>
+                                    </div>
+                                    <span class="complaint-status {{ status_class }}">{{ complaint.feed_status }}</span>
+                                </div>
+
+                                <p class="complaint-description">{{ complaint.description }}</p>
+
+                                {% if complaint.image %}
+                                    <a class="complaint-image-link" href="{{ url_for('uploaded_file', filename=complaint.image) }}" target="_blank">
+                                        <img src="{{ url_for('uploaded_file', filename=complaint.image) }}" alt="Complaint image" class="complaint-image">
+                                    </a>
+                                {% endif %}
+
+                                <div class="complaint-tag-row">
+                                    <span class="complaint-tag">{{ dept_label }}</span>
+                                    <span class="complaint-tag complaint-tag-category">{{ complaint.category }}</span>
+                                    {% if complaint.is_trending %}
+                                        <span class="complaint-tag complaint-tag-highlight">Trending</span>
+                                    {% endif %}
+                                    {% if complaint.merged_count %}
+                                        <span class="complaint-tag complaint-tag-merged">Merged {{ complaint.merged_count }} similar</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="complaint-card-foot">
+                                    <div class="complaint-vote-block">
                                         <form method="post" action="{{ url_for('vote_complaint', complaint_id=complaint.id) }}">
                                             <input type="hidden" name="next" value="{{ request.full_path }}">
                                             {% if complaint.has_voted %}
-                                                <button type="submit" class="btn btn-outline-secondary btn-sm w-100 upvote-button" disabled>↑ Voted</button>
+                                                <button type="submit" class="feed-vote-btn voted" disabled>▲ {{ complaint.votes }} upvotes</button>
                                             {% else %}
-                                                <button type="submit" class="btn btn-success btn-sm w-100 upvote-button">↑ Upvote</button>
+                                                <button type="submit" class="feed-vote-btn">▲ {{ complaint.votes }} upvotes</button>
                                             {% endif %}
                                         </form>
-                                    </div>
-                                </div>
-
-                                <div class="flex-grow-1">
-                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                        <span class="tag-pill">{{ complaint.category }}</span>
-                                        <span class="badge {{ status_class }}">{{ complaint.feed_status }}</span>
-                                        {% if complaint.is_trending %}
-                                            <span class="trending-badge">Trending issue</span>
+                                        {% if complaint.merged_count %}
+                                            <span class="complaint-merge-note">Votes include duplicate complaints merged into this issue.</span>
                                         {% endif %}
-                                        <span class="text-muted small">{{ complaint.department }}</span>
                                     </div>
 
-                                    <h3 class="h4 mb-2">{{ complaint.title }}</h3>
-                                    <p class="mb-3 text-secondary">{{ complaint.description }}</p>
-
-                                    {% if complaint.image %}
-                                        <div class="mb-3">
-                                            <a class="feed-link" href="{{ url_for('uploaded_file', filename=complaint.image) }}" target="_blank">
-                                                <img src="{{ url_for('uploaded_file', filename=complaint.image) }}" alt="Complaint image" class="img-fluid rounded-4 border">
-                                            </a>
-                                        </div>
-                                    {% endif %}
-
-                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                        <div class="text-muted small">
-                                            Posted by {{ complaint.posted_by }} &middot; {{ complaint.time_ago }} &middot; Priority {{ complaint.priority }}
-                                        </div>
-                                        <div class="d-flex gap-2">
-                                            {% if complaint.can_edit %}
-                                                <a href="{{ url_for('edit_student_complaint', complaint_id=complaint.id) }}" class="btn btn-outline-secondary btn-sm">Edit</a>
-                                            {% endif %}
-                                            {% if complaint.can_delete %}
-                                                <form method="post" action="{{ url_for('delete_student_complaint', complaint_id=complaint.id) }}" onsubmit="return confirm('Are you sure? This action may affect other students.');">
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
-                                                </form>
-                                            {% endif %}
-                                            {% if complaint.posted_by == 'You' %}
-                                                <a href="{{ url_for('my_complaints') }}" class="btn btn-outline-secondary btn-sm">Track updates</a>
-                                            {% else %}
-                                                <span class="btn btn-light btn-sm disabled">One vote per student</span>
-                                            {% endif %}
-                                        </div>
+                                    <div class="complaint-actions">
+                                        <a href="{{ url_for('complaint_detail', complaint_id=complaint.id) }}" class="feed-btn feed-btn-secondary">View Details</a>
                                     </div>
                                 </div>
-                            </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+
+                    {% if feed_has_more %}
+                        <div class="feed-load-more">
+                            <a
+                                href="{{ url_for('dashboard', q=feed_filters.q, category=feed_filters.category, status=feed_filters.status, sort=feed_filters.sort, department=feed_filters.department, scope=feed_filters.scope, page=feed_next_page) }}"
+                                class="feed-btn feed-btn-secondary feed-load-more-btn"
+                            >Load more complaints</a>
                         </div>
-                    {% else %}
-                        <div class="feed-card rounded-4 p-5 text-center">
-                            <h3 class="h5 mb-2">No complaints matched these filters</h3>
-                            <p class="text-muted mb-3">Try a broader search, clear the filters, or post a new complaint if the issue has not been reported yet.</p>
-                            <div class="d-flex justify-content-center gap-2">
-                                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Clear filters</a>
-                                <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary btn-sm">Post complaint</a>
-                            </div>
+                    {% endif %}
+                {% else %}
+                    <section class="feed-empty-state">
+                        <h3>No complaints matched your filters</h3>
+                        <p>Try a broader search, switch sorting, or submit a fresh complaint if the issue has not been reported yet.</p>
+                        <div class="feed-empty-actions">
+                            <a href="{{ url_for('dashboard') }}" class="feed-btn feed-btn-secondary">Clear filters</a>
+                            <a href="{{ url_for('submit_complaint') }}" class="feed-btn feed-btn-primary">New Complaint</a>
                         </div>
-                    {% endfor %}
-                </div>
-            </div>
+                    </section>
+                {% endif %}
+            </section>
         </div>
-    </div>
+        <a href="{{ url_for('submit_complaint') }}" class="feed-btn feed-btn-primary floating-add-btn" aria-label="Add complaint">+</a>
+    </main>
+    <script>
+        document.querySelectorAll(".js-counter").forEach((counter) => {
+            const target = Number(counter.dataset.count || 0);
+            const duration = 700;
+            const start = performance.now();
+
+            function tick(now) {
+                const progress = Math.min((now - start) / duration, 1);
+                counter.textContent = Math.round(target * progress);
+                if (progress < 1) {
+                    requestAnimationFrame(tick);
+                }
+            }
+
+            requestAnimationFrame(tick);
+        });
+
+        document.querySelectorAll(".feed-vote-btn:not(:disabled)").forEach((button) => {
+            button.addEventListener("click", () => {
+                button.classList.add("is-pulsing");
+            });
+        });
+    </script>
 </body>
 </html>

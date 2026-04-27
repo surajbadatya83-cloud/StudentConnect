@@ -1,31 +1,9 @@
-:root {
-    --page-bg: linear-gradient(180deg, #f3f8f7 0%, #edf2f7 100%);
-    --panel-bg: rgba(255, 255, 255, 0.92);
-    --panel-border: #d8e2ea;
-    --accent: #0f766e;
-    --accent-soft: #def7f3;
+.submit-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
 }
 
-body {
-    background: var(--page-bg);
-}
-
-.panel {
-    background: var(--panel-bg);
-    border: 1px solid var(--panel-border);
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-    backdrop-filter: blur(10px);
-}
-
-.duplicate-card {
-    border: 1px solid #f4d588;
-    background: #fffbeb;
-}
-
-.suggestion-pill {
-    background: var(--accent-soft);
-    color: var(--accent);
-    border-radius: 999px;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.82rem;
+@media (max-width: 991.98px) {
+    .submit-grid {
+        grid-template-columns: 1fr;
+    }
 }

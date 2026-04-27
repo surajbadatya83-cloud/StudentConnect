@@ -4,92 +4,231 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Complaints | StudentConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h2 mb-1">All Complaints</h1>
-                <p class="text-muted mb-0">Monitor every complaint submitted across the system.</p>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
-                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
-            </div>
-        </div>
+<body>
+    <main class="app-page">
+        <div class="app-shell">
+            <header class="app-topbar">
+                <a href="{{ url_for('home') }}" class="brand-lockup">
+                    <span class="brand-badge" aria-hidden="true"></span>
+                    <span class="brand-text">
+                        <strong>All Complaints</strong>
+                        <span>System-wide admin review table</span>
+                    </span>
+                </a>
+                <div class="app-actions">
+                    <a href="{{ url_for('admin_deleted_complaints') }}" class="btn btn-outline-secondary btn-sm">Deleted Log</a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+                </div>
+            </header>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="stack-sm mb-4">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
 
-        <div class="card shadow-sm">
-            <div class="card-body">
+            <section class="app-card">
+                <div class="section-heading">
+                    <div>
+                        <h2>Complaint register</h2>
+                        <p>Review every complaint, jump into detail, merge duplicates, or soft-delete inappropriate reports.</p>
+                    </div>
+                </div>
+
+                <form method="get" class="app-form mb-4">
+                    <div class="field-group">
+                        <label for="department">Department</label>
+                        <select class="form-select" id="department" name="department" size="1">
+                            <option value="">All departments</option>
+                            {% for department in departments %}
+                                <option value="{{ department }}" {% if selected_department == department %}selected{% endif %}>{{ department }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label for="visibility">Complaint state</label>
+                        <select class="form-select" id="visibility" name="visibility">
+                            {% for value, label in visibility_options.items() %}
+                                <option value="{{ value }}" {% if selected_visibility == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="app-actions">
+                        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                        <a href="{{ url_for('admin_complaints') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+                    </div>
+                </form>
+
                 {% if complaints %}
-                    <div class="table-responsive">
-                        <table class="table table-striped align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Student</th>
-                                    <th>Title</th>
-                                    <th>Category</th>
-                                    <th>Priority</th>
-                                    <th>Status</th>
-                                    <th>Votes</th>
-                                    <th>Type</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for complaint in complaints %}
+                    <div class="app-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead>
                                     <tr>
-                                        <td>#{{ complaint.id }}</td>
-                                        <td>{{ complaint.student.name }}</td>
-                                        <td>{{ complaint.title }}</td>
-                                        <td>{{ complaint.tag }}</td>
-                                        <td>{{ complaint.priority }}</td>
-                                        <td>{{ complaint.status }}</td>
-                                        <td>{{ complaint.votes }}</td>
-                                        <td>
-                                            {% if complaint.is_merged %}
-                                                <span class="badge text-bg-secondary">Merged into #{{ complaint.parent_id }}</span>
-                                            {% else %}
-                                                <span class="badge text-bg-success">Main</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="d-flex gap-2 align-items-center flex-wrap">
-                                                <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-primary btn-sm">Manage</a>
-                                                {% if not complaint.is_merged %}
-                                                    <form method="post" action="{{ url_for('merge_complaints', child_id=complaint.id) }}" class="d-flex gap-2 align-items-center">
-                                                        <select class="form-select form-select-sm" name="parent_id">
-                                                            <option value="">Merge into...</option>
-                                                            {% for target in merge_targets %}
-                                                                {% if target.id != complaint.id %}
-                                                                    <option value="{{ target.id }}">#{{ target.id }} - {{ target.title }}</option>
-                                                                {% endif %}
-                                                            {% endfor %}
-                                                        </select>
-                                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Merge</button>
-                                                    </form>
-                                                {% endif %}
-                                            </div>
-                                        </td>
+                                        <th>ID</th>
+                                        <th>Student</th>
+                                        <th>Title</th>
+                                        <th>Category</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Votes</th>
+                                        <th>Type</th>
+                                        <th>Action</th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {% for complaint in complaints %}
+                                        <tr>
+                                            <td>#{{ complaint.id }}</td>
+                                            <td>{{ complaint.student.name }}</td>
+                                            <td>
+                                                {{ complaint.title }}
+                                                {% if complaint.is_deleted and complaint.deleted_reason %}
+                                                    <div class="table-subtext small text-soft">Deleted: {{ complaint.deleted_reason }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ complaint.tag }}</td>
+                                            <td>{{ complaint.priority }}</td>
+                                            <td>
+                                                {% if complaint.is_deleted %}
+                                                    <span class="app-badge">Deleted</span>
+                                                {% else %}
+                                                    {{ complaint.status }}
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ complaint.votes }}</td>
+                                            <td>
+                                                {% if complaint.is_merged %}
+                                                    <span class="app-badge">Merged into #{{ complaint.parent_id }}</span>
+                                                {% else %}
+                                                    <span class="highlight-chip app-badge">Main</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="table-inline-form">
+                                                    <a href="{{ url_for('admin_complaint_detail', complaint_id=complaint.id) }}" class="btn btn-primary btn-sm">Manage</a>
+                                                    {% if not complaint.is_deleted and not complaint.is_merged %}
+                                                        <form method="post" action="{{ url_for('merge_complaints', child_id=complaint.id) }}" class="table-inline-form">
+                                                            <select class="form-select form-select-sm" name="parent_id">
+                                                                <option value="">Merge into...</option>
+                                                                {% for target in merge_targets %}
+                                                                    {% if target.id != complaint.id %}
+                                                                        <option value="{{ target.id }}">#{{ target.id }} - {{ target.title }}</option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                            <button type="submit" class="btn btn-outline-secondary btn-sm">Merge</button>
+                                                        </form>
+                                                        <button
+                                                            type="button"
+                                                            class="btn btn-outline-danger btn-sm js-delete-trigger"
+                                                            data-delete-url="{{ url_for('admin_delete_complaint', complaint_id=complaint.id) }}"
+                                                            data-complaint-title="{{ complaint.title }}"
+                                                            data-next="{{ request.full_path if request.query_string else request.path }}"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 {% else %}
-                    <p class="mb-0 text-muted">No complaints are available yet.</p>
+                    <section class="empty-state">
+                        <h2 class="h4 mb-2">No complaints are available yet</h2>
+                        <p class="text-soft mb-0">Once students begin submitting issues, the full register will appear here.</p>
+                    </section>
                 {% endif %}
+            </section>
+        </div>
+    </main>
+
+    <div class="modal fade" id="deleteComplaintModal" tabindex="-1" aria-labelledby="deleteComplaintModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <form method="post" id="deleteComplaintForm">
+                    <div class="modal-header border-secondary">
+                        <h2 class="modal-title fs-5" id="deleteComplaintModalLabel">Delete Complaint</h2>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">Are you sure you want to delete this complaint?</p>
+                        <p class="text-soft small mb-3" id="deleteComplaintTitle"></p>
+                        <input type="hidden" name="next" id="deleteComplaintNext">
+                        <div class="field-group mb-3">
+                            <label for="deleted_reason">Reason for deletion</label>
+                            <select class="form-select" id="deleted_reason" name="deleted_reason" required>
+                                <option value="">Select reason</option>
+                                {% for reason in deletion_reason_options %}
+                                    <option value="{{ reason }}">{{ reason }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field-group d-none" id="customReasonGroup">
+                            <label for="custom_reason">Custom reason</label>
+                            <textarea class="form-control" id="custom_reason" name="custom_reason" rows="3" placeholder="Enter the reason shown in the admin log."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Delete Complaint</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const deleteModalElement = document.getElementById("deleteComplaintModal");
+        const deleteForm = document.getElementById("deleteComplaintForm");
+        const deleteTitle = document.getElementById("deleteComplaintTitle");
+        const deleteNext = document.getElementById("deleteComplaintNext");
+        const deleteReasonSelect = document.getElementById("deleted_reason");
+        const customReasonGroup = document.getElementById("customReasonGroup");
+        const customReasonInput = document.getElementById("custom_reason");
+
+        if (deleteModalElement && deleteForm) {
+            const deleteModal = new bootstrap.Modal(deleteModalElement);
+
+            function syncCustomReasonVisibility() {
+                const shouldShow = deleteReasonSelect.value === "Other";
+                customReasonGroup.classList.toggle("d-none", !shouldShow);
+                customReasonInput.required = shouldShow;
+                if (!shouldShow) {
+                    customReasonInput.value = "";
+                }
+            }
+
+            document.querySelectorAll(".js-delete-trigger").forEach((button) => {
+                button.addEventListener("click", () => {
+                    deleteForm.action = button.dataset.deleteUrl;
+                    deleteTitle.textContent = button.dataset.complaintTitle;
+                    deleteNext.value = button.dataset.next || window.location.pathname;
+                    deleteReasonSelect.value = "";
+                    customReasonInput.value = "";
+                    syncCustomReasonVisibility();
+                    deleteModal.show();
+                });
+            });
+
+            deleteReasonSelect.addEventListener("change", syncCustomReasonVisibility);
+        }
+    </script>
 </body>
 </html>
